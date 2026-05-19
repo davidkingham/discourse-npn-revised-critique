@@ -2,7 +2,7 @@
 
 # name: discourse-revised-critique-image
 # about: Lets the OP of an image critique topic share a revised version after receiving feedback.
-# version: 1.2.0
+# version: 2.0.0
 # authors: David Kingham
 # url: https://github.com/davidkingham/discourse-revised-critique-image
 # license: MIT
@@ -17,6 +17,13 @@ register_svg_icon "wand-magic-sparkles"
 module ::DiscourseRevisedCritiqueImage
   PLUGIN_NAME = "discourse-revised-critique-image"
 
+  # JSON-encoded history of every revision a topic has had. Source of truth
+  # from v2.0 onwards. Each entry shape is documented in RevisionHistory.
+  REVISED_IMAGE_HISTORY = "revised_image_history"
+
+  # Denormalised "latest revision" fields. Kept in sync with the last entry
+  # of the history so that legacy serializers and external integrations can
+  # read the current state without parsing the JSON.
   REVISED_IMAGE_UPLOAD_ID = "revised_image_upload_id"
   REVISED_IMAGE_ADDED_AT = "revised_image_added_at"
   REVISED_IMAGE_ADDED_BY_USER_ID = "revised_image_added_by_user_id"
@@ -27,6 +34,7 @@ require_relative "lib/discourse_revised_critique_image/engine"
 
 after_initialize do
   require_relative "app/controllers/discourse_revised_critique_image/revisions_controller"
+  require_relative "lib/discourse_revised_critique_image/revision_history"
   require_relative "lib/discourse_revised_critique_image/revision_adder"
   require_relative "lib/discourse_revised_critique_image/eligibility"
   require_relative "lib/extensions/topic_view_serializer_extension"
@@ -35,6 +43,10 @@ after_initialize do
     mount ::DiscourseRevisedCritiqueImage::Engine, at: "/revised-critique-image"
   end
 
+  Topic.register_custom_field_type(
+    DiscourseRevisedCritiqueImage::REVISED_IMAGE_HISTORY,
+    :json
+  )
   Topic.register_custom_field_type(
     DiscourseRevisedCritiqueImage::REVISED_IMAGE_UPLOAD_ID,
     :integer

@@ -22,9 +22,11 @@ plugins:
   revised_critique_require_reply_from_other_user:
     default: true
     client: true
-  revised_critique_allow_replace:
-    default: false
+  revised_critique_max_revisions:
+    default: 3
+    type: integer
     client: true
+    min: 1
   revised_critique_add_notice_reply:
     default: false
     client: false

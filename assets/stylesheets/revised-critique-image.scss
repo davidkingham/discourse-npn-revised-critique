@@ -17,6 +17,12 @@
     line-height: var(--line-height-medium);
   }
 
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2, 0.5rem);
+  }
+
   &__button {
     flex: 0 0 auto;
   }
@@ -26,6 +32,15 @@
   &__description {
     margin-bottom: var(--space-3, 0.75rem);
     color: var(--primary-medium);
+  }
+
+  &__replace-helper {
+    margin: 0 0 var(--space-3, 0.75rem) 0;
+    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+    background: var(--highlight-bg);
+    border-left: 3px solid var(--tertiary);
+    color: var(--primary);
+    font-size: var(--font-down-1);
   }
 
   &__note {

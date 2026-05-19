@@ -16,7 +16,11 @@ module DiscourseRevisedCritiqueImage
       raise Discourse::NotFound if topic.blank?
       raise Discourse::NotFound unless guardian.can_see?(topic)
 
-      eligibility = Eligibility.check(topic: topic, user: current_user)
+      mode = parse_mode
+      return render_plugin_error(:invalid_mode, 422) if mode.nil?
+
+      eligibility =
+        Eligibility.check(topic: topic, user: current_user, mode: mode)
       return render_eligibility_error(eligibility) unless eligibility.ok
 
       # Defence in depth: even if Eligibility passed, re-check the strict
@@ -46,16 +50,28 @@ module DiscourseRevisedCritiqueImage
           topic: topic,
           upload: upload,
           user: current_user,
-          note: note
+          note: note,
+          mode: mode
         )
       return render_plugin_error(result.error_key, 422) unless result.success
 
-      render json: success_json.merge(topic_id: topic.id, upload_id: upload.id)
+      render json:
+               success_json.merge(
+                 topic_id: topic.id,
+                 upload_id: upload.id,
+                 mode: mode
+               )
     rescue RateLimiter::LimitExceeded
       render_plugin_error(:rate_limited, 429)
     end
 
     private
+
+    def parse_mode
+      raw = params[:mode].presence || "add"
+      sym = raw.to_s.to_sym
+      Eligibility::MODES.include?(sym) ? sym : nil
+    end
 
     # Disallow SVG (different cook path / inline content) and require that the
     # Upload record actually looks like a raster image (width recorded by

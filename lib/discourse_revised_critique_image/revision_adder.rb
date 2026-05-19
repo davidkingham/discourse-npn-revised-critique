@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
 module DiscourseRevisedCritiqueImage
-  # Edits the raw markdown of a topic's first post to insert a "Revised Version"
-  # block at the top, optionally appends a configurable title marker, and
-  # records the revision on the topic's custom fields.
+  # Adds or replaces a revision on a topic, rewriting the markdown block
+  # in the first post and persisting the JSON revision history.
   class RevisionAdder
     BEGIN_MARKER = "<!-- revised-critique-image:begin -->"
     END_MARKER = "<!-- revised-critique-image:end -->"
@@ -11,20 +10,23 @@ module DiscourseRevisedCritiqueImage
     Result =
       Struct.new(:success, :error_key, :error_message, keyword_init: true)
 
-    def self.call(topic:, upload:, user:, note: nil)
-      new(topic: topic, upload: upload, user: user, note: note).call
+    def self.call(topic:, upload:, user:, note: nil, mode: :add)
+      new(topic: topic, upload: upload, user: user, note: note, mode: mode).call
     end
 
-    def initialize(topic:, upload:, user:, note: nil)
+    def initialize(topic:, upload:, user:, note: nil, mode: :add)
       @topic = topic
       @upload = upload
       @user = user
       @note = note.to_s.strip.presence
+      @mode = mode.to_sym
     end
 
     def call
       first_post = @topic.first_post
       return failure(:first_post_missing) if first_post.blank?
+
+      apply_history_change!
 
       new_raw = build_new_raw(first_post.raw)
       fields = { raw: new_raw }
@@ -45,13 +47,28 @@ module DiscourseRevisedCritiqueImage
         )
       return failure(:revision_failed) unless saved
 
-      persist_custom_fields!
       maybe_post_notice_reply!
 
       Result.new(success: true)
     end
 
     private
+
+    def history
+      @history ||= RevisionHistory.for(@topic)
+    end
+
+    # Mutate the JSON history first so build_new_raw renders the up-to-date set.
+    # Persist (and sync the denormalised "latest" scalar fields) atomically
+    # alongside the raw/title revision below.
+    def apply_history_change!
+      case @mode
+      when :add
+        history.add!(upload: @upload, user: @user, note: @note)
+      when :replace_latest
+        history.replace_latest!(upload: @upload, user: @user, note: @note)
+      end
+    end
 
     def build_new_raw(existing_raw)
       stripped = strip_existing_block(existing_raw)
@@ -64,31 +81,50 @@ module DiscourseRevisedCritiqueImage
       pattern =
         /#{Regexp.escape(BEGIN_MARKER)}.*?#{Regexp.escape(END_MARKER)}\s*/m
       cleaned = raw.sub(pattern, "")
-      # Also remove a stale "## Original Version" heading we previously inserted.
       cleaned.sub(/\A## #{Regexp.escape(original_heading)}\s*\n+/, "")
     end
 
+    # The full block contains every revision in the history, newest first.
     def revision_block
-      lines = [BEGIN_MARKER, "## #{revised_heading}", "", image_markdown]
-      lines += ["", "**#{what_changed_label}** #{escape_note(@note)}"] if @note
-      lines += ["", "*#{notice_text}*", "", "---", END_MARKER]
+      lines = [BEGIN_MARKER, "## #{revised_heading}"]
+      ordered = history.entries.reverse
+      ordered.each_with_index do |entry, index|
+        lines << ""
+        lines << "### #{label_for(entry, latest: index.zero?)}"
+        lines << ""
+        lines << image_markdown(entry)
+        if entry["note"].present?
+          lines << ""
+          lines << "**#{what_changed_label}** #{escape_note(entry["note"])}"
+        end
+      end
+      lines << ""
+      lines << "*#{notice_text}*"
+      lines << ""
+      lines << "---"
+      lines << END_MARKER
       lines.join("\n")
     end
 
-    def image_markdown
-      "![Revised version|#{upload_dimensions}](#{@upload.short_url})"
+    def label_for(entry, latest:)
+      key = latest ? "latest_revision_label" : "previous_revision_label"
+      I18n.t(
+        "discourse_revised_critique_image.#{key}",
+        number: entry["revision_number"]
+      )
     end
 
-    def upload_dimensions
-      width = @upload.width.to_i
-      height = @upload.height.to_i
+    def image_markdown(entry)
+      "![Revised version|#{dimensions_for(entry)}](#{entry["upload_short_url"]})"
+    end
+
+    def dimensions_for(entry)
+      width = entry["width"].to_i
+      height = entry["height"].to_i
       return "690x460" if width <= 0 || height <= 0
       "#{width}x#{height}"
     end
 
-    # Collapse multi-line input to single-line for the inline "What changed"
-    # paragraph. Discourse markdown sanitises output; we only normalise
-    # whitespace so the inline rendering stays predictable.
     def escape_note(note)
       note.gsub(/\s*\r?\n+\s*/, " ").strip
     end
@@ -130,14 +166,6 @@ module DiscourseRevisedCritiqueImage
             nil
           end
         end
-    end
-
-    def persist_custom_fields!
-      @topic.custom_fields[REVISED_IMAGE_UPLOAD_ID] = @upload.id
-      @topic.custom_fields[REVISED_IMAGE_ADDED_AT] = Time.zone.now.iso8601
-      @topic.custom_fields[REVISED_IMAGE_ADDED_BY_USER_ID] = @user.id
-      @topic.custom_fields[REVISED_IMAGE_NOTE] = @note
-      @topic.save_custom_fields(true)
     end
 
     def maybe_post_notice_reply!

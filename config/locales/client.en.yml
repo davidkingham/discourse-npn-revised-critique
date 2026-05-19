@@ -2,11 +2,20 @@ en:
   js:
     discourse_revised_critique_image:
       button_label: "Share Revised Version"
+      add_another_label: "Add Another Revision"
+      replace_latest_label: "Replace Latest Revision"
       eligible_message: "You’ve received feedback on this image. You can share a revised version at the top of your original post."
+      can_replace_or_add_message: "You’ve already shared a revised version. You can replace the latest revision or add another round of changes."
+      at_max_message: "You’ve reached the revision limit for this topic, but you can still replace the latest revision if you need to correct it."
       modal:
-        title: "Share a revised version"
+        title_add_first: "Share a revised version"
+        title_add_another: "Add another revision"
+        title_replace_latest: "Replace latest revision"
         description: "Upload a revised version of your image. It will be added to the top of your original post."
-        submit: "Share revised version"
+        replace_helper: "This will replace your most recent revision, not create a new revision entry."
+        submit_add_first: "Share revised version"
+        submit_add_another: "Add revision"
+        submit_replace_latest: "Replace latest"
         submitting: "Adding…"
         note_label: "What did you change?"
         note_helper: "Optional. Share a short note about what you adjusted after receiving feedback."

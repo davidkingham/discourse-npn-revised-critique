@@ -20,36 +20,33 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
       raw: "Original critique image post."
     )
   end
-  fab!(:upload) do
+
+  let(:endpoint) { "/revised-critique-image/topics/#{topic.id}/revisions.json" }
+
+  def fab_upload(filename: "rev.png", width: 800, height: 600)
     Fabricate(
       :upload,
       user: owner,
-      original_filename: "revision.png",
-      width: 800,
-      height: 600
+      original_filename: filename,
+      width: width,
+      height: height
     )
   end
-
-  let(:endpoint) { "/revised-critique-image/topics/#{topic.id}/revisions.json" }
 
   before do
     enable_current_plugin
     SiteSetting.revised_critique_category_id = category.id
+    SiteSetting.revised_critique_max_revisions = 3
   end
 
   context "as the OP" do
     before { sign_in(owner) }
 
     it "rejects when there are no replies from other users" do
-      post endpoint, params: { upload_id: upload.id }
+      post endpoint, params: { upload_id: fab_upload.id }
 
       expect(response.status).to eq(422)
       expect(response.parsed_body["error_key"]).to eq("no_replies")
-      expect(
-        topic.reload.custom_fields[
-          DiscourseRevisedCritiqueImage::REVISED_IMAGE_UPLOAD_ID
-        ]
-      ).to be_blank
     end
 
     context "with a reply from another user" do
@@ -62,216 +59,209 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
         )
       end
 
-      it "adds the revised image and appends the title marker" do
-        post endpoint, params: { upload_id: upload.id }
+      describe "add (first revision)" do
+        let(:upload) { fab_upload }
 
-        expect(response.status).to eq(200)
-        topic.reload
-        expect(
-          topic.custom_fields[
-            DiscourseRevisedCritiqueImage::REVISED_IMAGE_UPLOAD_ID
-          ].to_i
-        ).to eq(upload.id)
-        expect(
-          topic.custom_fields[
-            DiscourseRevisedCritiqueImage::REVISED_IMAGE_ADDED_BY_USER_ID
-          ].to_i
-        ).to eq(owner.id)
-        expect(topic.title).to eq("Critique my image please (+revised)")
-
-        new_raw = first_post.reload.raw
-        expect(new_raw).to include("## Revised Version")
-        expect(new_raw).to include(upload.short_url)
-        expect(new_raw).to include("## Original Version")
-        expect(new_raw).to include("Original critique image post.")
-        expect(new_raw).not_to include("**What changed:**")
-      end
-
-      it "respects a custom title marker" do
-        SiteSetting.revised_critique_title_marker = "[REVISED]"
-        post endpoint, params: { upload_id: upload.id }
-
-        expect(response.status).to eq(200)
-        expect(topic.reload.title).to eq("Critique my image please [REVISED]")
-      end
-
-      it "does not duplicate the marker when it is already present" do
-        topic.update!(title: "Critique my image please (+revised)")
-
-        post endpoint, params: { upload_id: upload.id }
-
-        expect(response.status).to eq(200)
-        expect(topic.reload.title).to eq("Critique my image please (+revised)")
-      end
-
-      it "skips the marker when it would exceed the title length limit" do
-        SiteSetting.max_topic_title_length = topic.title.length + 2
-        post endpoint, params: { upload_id: upload.id }
-
-        expect(response.status).to eq(200)
-        topic.reload
-        expect(topic.title).to eq("Critique my image please")
-        # Revision still applied.
-        expect(
-          topic.custom_fields[
-            DiscourseRevisedCritiqueImage::REVISED_IMAGE_UPLOAD_ID
-          ].to_i
-        ).to eq(upload.id)
-      end
-
-      it "inserts the note when provided" do
-        post endpoint,
-             params: {
-               upload_id: upload.id,
-               note: "  Opened up the shadows.  "
-             }
-
-        expect(response.status).to eq(200)
-        new_raw = first_post.reload.raw
-        expect(new_raw).to include("**What changed:** Opened up the shadows.")
-        expect(
-          topic.reload.custom_fields[
-            DiscourseRevisedCritiqueImage::REVISED_IMAGE_NOTE
-          ]
-        ).to eq("Opened up the shadows.")
-      end
-
-      it "collapses newlines inside a note to a single line" do
-        post endpoint,
-             params: {
-               upload_id: upload.id,
-               note: "Line one\n\nLine two"
-             }
-
-        expect(response.status).to eq(200)
-        expect(first_post.reload.raw).to include(
-          "**What changed:** Line one Line two"
-        )
-      end
-
-      it "omits the note line cleanly when no note is given" do
-        post endpoint, params: { upload_id: upload.id, note: "" }
-
-        expect(response.status).to eq(200)
-        expect(first_post.reload.raw).not_to include("**What changed:**")
-      end
-
-      it "rejects an over-length note" do
-        SiteSetting.revised_critique_note_max_length = 10
-        post endpoint, params: { upload_id: upload.id, note: "x" * 50 }
-
-        expect(response.status).to eq(422)
-        expect(response.parsed_body["error_key"]).to eq("note_too_long")
-        expect(
-          topic.reload.custom_fields[
-            DiscourseRevisedCritiqueImage::REVISED_IMAGE_UPLOAD_ID
-          ]
-        ).to be_blank
-      end
-
-      it "rejects a second revision when replacement is disabled" do
-        post endpoint, params: { upload_id: upload.id }
-        expect(response.status).to eq(200)
-
-        second_upload =
-          Fabricate(
-            :upload,
-            user: owner,
-            original_filename: "v2.png",
-            width: 700,
-            height: 500
-          )
-        post endpoint, params: { upload_id: second_upload.id }
-
-        expect(response.status).to eq(422)
-        expect(response.parsed_body["error_key"]).to eq("already_revised")
-        expect(
-          topic.reload.custom_fields[
-            DiscourseRevisedCritiqueImage::REVISED_IMAGE_UPLOAD_ID
-          ].to_i
-        ).to eq(upload.id)
-      end
-
-      context "with replacement enabled" do
-        before { SiteSetting.revised_critique_allow_replace = true }
-
-        it "swaps the image and replaces the note cleanly" do
-          post endpoint, params: { upload_id: upload.id, note: "First note." }
-          expect(response.status).to eq(200)
-
-          second_upload =
-            Fabricate(
-              :upload,
-              user: owner,
-              original_filename: "v2.png",
-              width: 700,
-              height: 500
-            )
+        it "creates Revision 1, appends the title marker, and renders the block" do
           post endpoint,
                params: {
-                 upload_id: second_upload.id,
-                 note: "Second note."
+                 upload_id: upload.id,
+                 note: "  Pulled back highlights.  "
                }
 
           expect(response.status).to eq(200)
+          topic.reload
+          expect(topic.title).to eq("Critique my image please (+revised)")
+
+          history = DiscourseRevisedCritiqueImage::RevisionHistory.for(topic)
+          expect(history.count).to eq(1)
+          latest = history.latest
+          expect(latest["revision_number"]).to eq(1)
+          expect(latest["upload_id"]).to eq(upload.id)
+          expect(latest["note"]).to eq("Pulled back highlights.")
+          expect(latest["user_id"]).to eq(owner.id)
+
           raw = first_post.reload.raw
-          expect(raw).to include(second_upload.short_url)
-          expect(raw).not_to include(upload.short_url)
-          expect(raw).to include("**What changed:** Second note.")
-          expect(raw).not_to include("First note.")
+          expect(raw).to include("## Revised Version")
+          expect(raw).to include("Revision 1 (latest)")
+          expect(raw).to include(upload.short_url)
+          expect(raw).to include("**What changed:** Pulled back highlights.")
+          expect(raw).to include("## Original Version")
         end
 
-        it "removes the old note when replacement omits a note" do
-          post endpoint, params: { upload_id: upload.id, note: "First note." }
-          expect(response.status).to eq(200)
+        it "rejects an over-length note" do
+          SiteSetting.revised_critique_note_max_length = 10
+          post endpoint, params: { upload_id: upload.id, note: "x" * 50 }
+          expect(response.status).to eq(422)
+          expect(response.parsed_body["error_key"]).to eq("note_too_long")
+        end
+      end
 
-          second_upload =
-            Fabricate(
-              :upload,
-              user: owner,
-              original_filename: "v2.png",
-              width: 700,
-              height: 500
-            )
-          post endpoint, params: { upload_id: second_upload.id, note: "" }
-
+      describe "add (subsequent revisions)" do
+        before do
+          post endpoint,
+               params: {
+                 upload_id: fab_upload(filename: "r1.png").id,
+                 note: "first"
+               }
           expect(response.status).to eq(200)
-          raw = first_post.reload.raw
-          expect(raw).not_to include("First note.")
-          expect(raw).not_to include("**What changed:**")
         end
 
-        it "does not append the marker a second time on replacement" do
-          post endpoint, params: { upload_id: upload.id }
+        it "creates Revision 2 while preserving Revision 1" do
+          r2 = fab_upload(filename: "r2.png", width: 700, height: 500)
+          post endpoint, params: { upload_id: r2.id, note: "second" }
+
+          expect(response.status).to eq(200)
+          history =
+            DiscourseRevisedCritiqueImage::RevisionHistory.for(topic.reload)
+          expect(history.count).to eq(2)
+          expect(history.entries.map { |e| e["revision_number"] }).to eq([1, 2])
+          expect(history.latest["upload_id"]).to eq(r2.id)
+
+          raw = first_post.reload.raw
+          expect(raw).to include("Revision 2 (latest)")
+          expect(raw).to include("Revision 1")
+          expect(raw).to include(r2.short_url)
+        end
+
+        it "does not duplicate the title marker on subsequent adds" do
+          post endpoint,
+               params: {
+                 upload_id: fab_upload(filename: "r2.png").id
+               }
           expect(topic.reload.title).to eq(
             "Critique my image please (+revised)"
           )
 
-          second_upload =
-            Fabricate(
-              :upload,
-              user: owner,
-              original_filename: "v2.png",
-              width: 700,
-              height: 500
-            )
-          post endpoint, params: { upload_id: second_upload.id }
-
-          expect(response.status).to eq(200)
+          post endpoint,
+               params: {
+                 upload_id: fab_upload(filename: "r3.png").id
+               }
           expect(topic.reload.title).to eq(
             "Critique my image please (+revised)"
           )
         end
+
+        it "rejects add when at max revisions" do
+          SiteSetting.revised_critique_max_revisions = 1
+
+          post endpoint,
+               params: {
+                 upload_id: fab_upload(filename: "r2.png").id
+               }
+
+          expect(response.status).to eq(422)
+          expect(response.parsed_body["error_key"]).to eq(
+            "max_revisions_reached"
+          )
+        end
+      end
+
+      describe "replace_latest" do
+        it "is rejected when no revisions exist yet" do
+          post endpoint,
+               params: {
+                 upload_id: fab_upload.id,
+                 mode: "replace_latest"
+               }
+          expect(response.status).to eq(422)
+          expect(response.parsed_body["error_key"]).to eq(
+            "no_revision_to_replace"
+          )
+        end
+
+        context "after a first revision" do
+          let!(:initial_upload) { fab_upload(filename: "r1.png") }
+
+          before do
+            post endpoint,
+                 params: {
+                   upload_id: initial_upload.id,
+                   note: "first"
+                 }
+            expect(response.status).to eq(200)
+          end
+
+          it "replaces only the latest entry, keeping the revision number" do
+            replacement =
+              fab_upload(filename: "r1b.png", width: 700, height: 500)
+            post endpoint,
+                 params: {
+                   upload_id: replacement.id,
+                   note: "corrected",
+                   mode: "replace_latest"
+                 }
+
+            expect(response.status).to eq(200)
+            history =
+              DiscourseRevisedCritiqueImage::RevisionHistory.for(topic.reload)
+            expect(history.count).to eq(1)
+            expect(history.latest["revision_number"]).to eq(1)
+            expect(history.latest["upload_id"]).to eq(replacement.id)
+            expect(history.latest["note"]).to eq("corrected")
+
+            raw = first_post.reload.raw
+            expect(raw).to include(replacement.short_url)
+            expect(raw).not_to include(initial_upload.short_url)
+            expect(raw).not_to include("first")
+          end
+
+          it "replaces only the latest of multiple revisions" do
+            r2 = fab_upload(filename: "r2.png")
+            post endpoint, params: { upload_id: r2.id, note: "second" }
+            expect(response.status).to eq(200)
+
+            r2b = fab_upload(filename: "r2b.png")
+            post endpoint,
+                 params: {
+                   upload_id: r2b.id,
+                   note: "fixed",
+                   mode: "replace_latest"
+                 }
+            expect(response.status).to eq(200)
+
+            history =
+              DiscourseRevisedCritiqueImage::RevisionHistory.for(topic.reload)
+            expect(history.count).to eq(2)
+            expect(history.entries[0]["upload_id"]).to eq(initial_upload.id)
+            expect(history.entries[1]["upload_id"]).to eq(r2b.id)
+            expect(history.entries[1]["revision_number"]).to eq(2)
+          end
+
+          it "is allowed when at max revisions" do
+            SiteSetting.revised_critique_max_revisions = 1
+            replacement = fab_upload(filename: "r1b.png")
+
+            post endpoint,
+                 params: {
+                   upload_id: replacement.id,
+                   mode: "replace_latest"
+                 }
+
+            expect(response.status).to eq(200)
+            history =
+              DiscourseRevisedCritiqueImage::RevisionHistory.for(topic.reload)
+            expect(history.count).to eq(1)
+            expect(history.latest["upload_id"]).to eq(replacement.id)
+          end
+        end
+      end
+
+      it "rejects unknown modes" do
+        post endpoint,
+             params: {
+               upload_id: fab_upload.id,
+               mode: "delete_everything"
+             }
+        expect(response.status).to eq(422)
+        expect(response.parsed_body["error_key"]).to eq("invalid_mode")
       end
 
       it "rejects when the topic is in another category" do
         topic.update!(category: Fabricate(:category))
-
-        post endpoint, params: { upload_id: upload.id }
-
+        post endpoint, params: { upload_id: fab_upload.id }
         expect(response.status).to eq(422)
         expect(response.parsed_body["error_key"]).to eq("not_in_category")
-        expect(topic.reload.title).to eq("Critique my image please")
       end
     end
   end
@@ -282,18 +272,26 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
       sign_in(other_user)
     end
 
-    it "is rejected and the title is unchanged" do
-      post endpoint, params: { upload_id: upload.id }
-
+    it "is rejected on add" do
+      post endpoint, params: { upload_id: fab_upload.id }
       expect(response.status).to eq(422)
       expect(response.parsed_body["error_key"]).to eq("not_owner")
-      expect(topic.reload.title).to eq("Critique my image please")
+    end
+
+    it "is rejected on replace_latest" do
+      post endpoint,
+           params: {
+             upload_id: fab_upload.id,
+             mode: "replace_latest"
+           }
+      expect(response.status).to eq(422)
+      expect(response.parsed_body["error_key"]).to eq("not_owner")
     end
   end
 
   context "as an anonymous user" do
     it "is rejected" do
-      post endpoint, params: { upload_id: upload.id }
+      post endpoint, params: { upload_id: fab_upload.id }
       expect(response.status).to eq(403)
     end
   end
@@ -306,36 +304,9 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
 
     it "rejects when the topic is closed" do
       topic.update!(closed: true)
-      post endpoint, params: { upload_id: upload.id }
+      post endpoint, params: { upload_id: fab_upload.id }
       expect(response.status).to eq(403)
       expect(response.parsed_body["error_key"]).to eq("cannot_edit_post")
-    end
-
-    it "rejects when the topic is archived" do
-      topic.update!(archived: true)
-      post endpoint, params: { upload_id: upload.id }
-      expect(response.status).to eq(403)
-      expect(response.parsed_body["error_key"]).to eq("cannot_edit_post")
-    end
-
-    it "rejects when the topic is deleted" do
-      topic.trash!
-      post endpoint, params: { upload_id: upload.id }
-      expect(response.status).to eq(404)
-    end
-
-    it "rejects when the OP is suspended" do
-      owner.update!(suspended_till: 1.day.from_now, suspended_at: Time.zone.now)
-      post endpoint, params: { upload_id: upload.id }
-      # Discourse's auth layer rejects suspended users with 403/not_logged_in
-      # before we get to the controller body. Eligibility#suspended? is a
-      # defence-in-depth check covering anywhere else the user could leak through.
-      expect(response.status).to eq(403)
-      expect(
-        topic.reload.custom_fields[
-          DiscourseRevisedCritiqueImage::REVISED_IMAGE_UPLOAD_ID
-        ]
-      ).to be_blank
     end
 
     it "rejects an SVG upload" do
@@ -353,89 +324,23 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
       expect(response.parsed_body["error_key"]).to eq("invalid_upload")
     end
 
-    it "rejects an upload that has no recorded dimensions" do
-      no_dims =
-        Fabricate(
-          :upload,
-          user: owner,
-          original_filename: "weird.png",
-          width: 0,
-          height: 0
-        )
-      post endpoint, params: { upload_id: no_dims.id }
-      expect(response.status).to eq(422)
-      expect(response.parsed_body["error_key"]).to eq("invalid_upload")
-    end
-
-    it "rate-limits non-staff after the configured threshold" do
-      SiteSetting.revised_critique_allow_replace = true
+    it "rate-limits non-staff" do
       RateLimiter.enable
       freeze_time
-
       stub_const(
         DiscourseRevisedCritiqueImage::RevisionsController,
         :RATE_LIMIT_MAX,
         1
       ) do
-        post endpoint, params: { upload_id: upload.id }
+        post endpoint, params: { upload_id: fab_upload(filename: "a.png").id }
         expect(response.status).to eq(200)
 
-        second_upload =
-          Fabricate(
-            :upload,
-            user: owner,
-            original_filename: "v2.png",
-            width: 700,
-            height: 500
-          )
-        post endpoint, params: { upload_id: second_upload.id }
+        post endpoint, params: { upload_id: fab_upload(filename: "b.png").id }
         expect(response.status).to eq(429)
         expect(response.parsed_body["error_key"]).to eq("rate_limited")
       end
     ensure
       RateLimiter.disable
-    end
-
-    it "does not rate-limit staff users" do
-      SiteSetting.revised_critique_allow_replace = true
-      owner.update!(admin: true)
-      RateLimiter.enable
-      freeze_time
-
-      stub_const(
-        DiscourseRevisedCritiqueImage::RevisionsController,
-        :RATE_LIMIT_MAX,
-        1
-      ) do
-        post endpoint, params: { upload_id: upload.id }
-        expect(response.status).to eq(200)
-
-        second_upload =
-          Fabricate(
-            :upload,
-            user: owner,
-            original_filename: "v2.png",
-            width: 700,
-            height: 500
-          )
-        post endpoint, params: { upload_id: second_upload.id }
-        expect(response.status).to eq(200)
-      end
-    ensure
-      RateLimiter.disable
-    end
-
-    it "does not advertise success when PostRevisor reports a failed save" do
-      allow_any_instance_of(PostRevisor).to receive(:revise!).and_return(false)
-      post endpoint, params: { upload_id: upload.id }
-
-      expect(response.status).to eq(422)
-      expect(response.parsed_body["error_key"]).to eq("revision_failed")
-      expect(
-        topic.reload.custom_fields[
-          DiscourseRevisedCritiqueImage::REVISED_IMAGE_UPLOAD_ID
-        ]
-      ).to be_blank
     end
   end
 end

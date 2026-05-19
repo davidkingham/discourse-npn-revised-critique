@@ -24,6 +24,40 @@ export default class RevisedImageModal extends Component {
     return this.args.model.topic;
   }
 
+  // "add" or "replace_latest". Defaults to "add" for backwards compat with
+  // any callers that don't supply a mode.
+  get mode() {
+    return this.args.model.mode === "replace_latest" ? "replace_latest" : "add";
+  }
+
+  get isReplaceMode() {
+    return this.mode === "replace_latest";
+  }
+
+  get isFirstRevision() {
+    return !this.isReplaceMode && (this.topic?.revised_critique_image_revision_count || 0) === 0;
+  }
+
+  get title() {
+    if (this.isReplaceMode) {
+      return i18n("discourse_revised_critique_image.modal.title_replace_latest");
+    }
+    if (this.isFirstRevision) {
+      return i18n("discourse_revised_critique_image.modal.title_add_first");
+    }
+    return i18n("discourse_revised_critique_image.modal.title_add_another");
+  }
+
+  get submitLabelKey() {
+    if (this.isReplaceMode) {
+      return "discourse_revised_critique_image.modal.submit_replace_latest";
+    }
+    if (this.isFirstRevision) {
+      return "discourse_revised_critique_image.modal.submit_add_first";
+    }
+    return "discourse_revised_critique_image.modal.submit_add_another";
+  }
+
   get maxNoteLength() {
     return parseInt(this.siteSettings.revised_critique_note_max_length, 10) || 500;
   }
@@ -67,7 +101,11 @@ export default class RevisedImageModal extends Component {
     try {
       await ajax(`/revised-critique-image/topics/${this.topic.id}/revisions`, {
         type: "POST",
-        data: { upload_id: this.uploadedUploadId, note: this.note.trim() },
+        data: {
+          upload_id: this.uploadedUploadId,
+          note: this.note.trim(),
+          mode: this.mode,
+        },
       });
 
       this.args.closeModal();
@@ -82,13 +120,19 @@ export default class RevisedImageModal extends Component {
   <template>
     <DModal
       class="revised-image-modal"
-      @title={{i18n "discourse_revised_critique_image.modal.title"}}
+      @title={{this.title}}
       @closeModal={{@closeModal}}
     >
       <:body>
         <p class="revised-image-modal__description">
           {{i18n "discourse_revised_critique_image.modal.description"}}
         </p>
+
+        {{#if this.isReplaceMode}}
+          <p class="revised-image-modal__replace-helper">
+            {{i18n "discourse_revised_critique_image.modal.replace_helper"}}
+          </p>
+        {{/if}}
 
         <UppyImageUploader
           @id="revised-image-uploader"
@@ -140,10 +184,9 @@ export default class RevisedImageModal extends Component {
           class="btn-primary revised-image-modal__submit"
           @action={{this.submit}}
           @disabled={{this.submitDisabled}}
-          @label={{if
-            this.submitting
+          @label={{if this.submitting
             "discourse_revised_critique_image.modal.submitting"
-            "discourse_revised_critique_image.modal.submit"
+            this.submitLabelKey
           }}
         />
         <DModalCancel @close={{@closeModal}} />

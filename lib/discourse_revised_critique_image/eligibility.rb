@@ -1,22 +1,27 @@
 # frozen_string_literal: true
 
 module DiscourseRevisedCritiqueImage
-  # Centralises the rules that decide whether a given user can add a revised
-  # image to a given topic. Used by both the controller (to authorise the
-  # mutation) and the serializer (to drive whether the frontend button shows).
+  # Centralises the rules that decide whether a given user can add or replace
+  # a revised image on a given topic. Used by both the controller (to
+  # authorise the mutation) and the serializer (to drive whether the frontend
+  # buttons are shown).
   class Eligibility
+    MODES = %i[add replace_latest].freeze
+
     Result = Struct.new(:ok, :error_key, keyword_init: true)
 
-    def self.check(topic:, user:)
-      new(topic: topic, user: user).check
+    def self.check(topic:, user:, mode: :add)
+      new(topic: topic, user: user, mode: mode).check
     end
 
-    def initialize(topic:, user:)
+    def initialize(topic:, user:, mode: :add)
       @topic = topic
       @user = user
+      @mode = mode.to_sym
     end
 
     def check
+      return failure(:invalid_mode) if MODES.exclude?(@mode)
       unless SiteSetting.revised_critique_enabled
         return failure(:plugin_disabled)
       end
@@ -30,26 +35,31 @@ module DiscourseRevisedCritiqueImage
       return failure(:cannot_edit_post) unless first_post_editable?
       return failure(:no_replies) if require_reply? && !has_other_user_reply?
 
-      if has_existing_revision? && !SiteSetting.revised_critique_allow_replace
-        return failure(:already_revised)
+      case @mode
+      when :add
+        return failure(:max_revisions_reached) if history.at_max?
+      when :replace_latest
+        return failure(:no_revision_to_replace) if history.empty?
       end
 
       Result.new(ok: true)
     end
 
-    def can_add?
+    def can?
       check.ok
     end
 
     private
+
+    def history
+      @history ||= RevisionHistory.for(@topic)
+    end
 
     def in_configured_category?
       category_id = SiteSetting.revised_critique_category_id.to_i
       category_id > 0 && @topic.category_id == category_id
     end
 
-    # Cheap topic-level checks. The strict `Guardian#can_edit?` check still
-    # happens once more at the controller layer for defence in depth.
     def topic_editable?
       return false if @topic.closed?
       return false if @topic.archived?
@@ -74,10 +84,6 @@ module DiscourseRevisedCritiqueImage
         .where("post_number > 1")
         .where("user_id <> ?", @topic.user_id)
         .exists?
-    end
-
-    def has_existing_revision?
-      @topic.custom_fields[REVISED_IMAGE_UPLOAD_ID].present?
     end
 
     def failure(key)

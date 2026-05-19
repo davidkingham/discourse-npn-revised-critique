@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
 # name: discourse-revised-critique-image
-# about: Lets the OP of an image critique topic add a revised version after receiving feedback.
-# version: 0.0.1
+# about: Lets the OP of an image critique topic share a revised version after receiving feedback.
+# version: 1.2.0
 # authors: David Kingham
 # url: https://github.com/davidkingham/discourse-revised-critique-image
+# license: MIT
 
 enabled_site_setting :revised_critique_enabled
 

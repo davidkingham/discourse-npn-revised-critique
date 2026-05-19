@@ -44,26 +44,14 @@ after_initialize do
     mount ::DiscourseRevisedCritiqueImage::Engine, at: "/revised-critique-image"
   end
 
-  Topic.register_custom_field_type(
-    DiscourseRevisedCritiqueImage::REVISED_IMAGE_HISTORY,
-    :json
-  )
-  Topic.register_custom_field_type(
-    DiscourseRevisedCritiqueImage::REVISED_IMAGE_UPLOAD_ID,
-    :integer
-  )
+  Topic.register_custom_field_type(DiscourseRevisedCritiqueImage::REVISED_IMAGE_HISTORY, :json)
+  Topic.register_custom_field_type(DiscourseRevisedCritiqueImage::REVISED_IMAGE_UPLOAD_ID, :integer)
   Topic.register_custom_field_type(
     DiscourseRevisedCritiqueImage::REVISED_IMAGE_ADDED_BY_USER_ID,
-    :integer
+    :integer,
   )
-  Topic.register_custom_field_type(
-    DiscourseRevisedCritiqueImage::REVISED_IMAGE_ADDED_AT,
-    :string
-  )
-  Topic.register_custom_field_type(
-    DiscourseRevisedCritiqueImage::REVISED_IMAGE_NOTE,
-    :string
-  )
+  Topic.register_custom_field_type(DiscourseRevisedCritiqueImage::REVISED_IMAGE_ADDED_AT, :string)
+  Topic.register_custom_field_type(DiscourseRevisedCritiqueImage::REVISED_IMAGE_NOTE, :string)
 
   TopicList.preloaded_custom_fields << DiscourseRevisedCritiqueImage::REVISED_IMAGE_UPLOAD_ID
 

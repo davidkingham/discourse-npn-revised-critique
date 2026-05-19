@@ -53,12 +53,7 @@ module DiscourseRevisedCritiqueImage
     # Append a new entry. Returns the new entry.
     def add!(upload:, user:, note:)
       entry =
-        build_entry(
-          upload: upload,
-          user: user,
-          note: note,
-          revision_number: next_revision_number
-        )
+        build_entry(upload: upload, user: user, note: note, revision_number: next_revision_number)
       mutated = entries + [entry]
       persist!(mutated)
       entry
@@ -113,7 +108,7 @@ module DiscourseRevisedCritiqueImage
         "note" => note.presence,
         "user_id" => user.id,
         "created_at" => now,
-        "updated_at" => now
+        "updated_at" => now,
       }
     end
 
@@ -131,9 +126,7 @@ module DiscourseRevisedCritiqueImage
 
       @topic.custom_fields[REVISED_IMAGE_UPLOAD_ID] = latest_entry["upload_id"]
       @topic.custom_fields[REVISED_IMAGE_ADDED_AT] = latest_entry["updated_at"]
-      @topic.custom_fields[REVISED_IMAGE_ADDED_BY_USER_ID] = latest_entry[
-        "user_id"
-      ]
+      @topic.custom_fields[REVISED_IMAGE_ADDED_BY_USER_ID] = latest_entry["user_id"]
       @topic.custom_fields[REVISED_IMAGE_NOTE] = latest_entry["note"]
     end
 
@@ -154,8 +147,7 @@ module DiscourseRevisedCritiqueImage
           "revision_number" => 1,
           "upload_id" => legacy_upload.id,
           "upload_short_url" => legacy_upload.short_url,
-          "width" =>
-            legacy_upload.width.to_i.positive? ? legacy_upload.width.to_i : nil,
+          "width" => legacy_upload.width.to_i.positive? ? legacy_upload.width.to_i : nil,
           "height" =>
             (
               if legacy_upload.height.to_i.positive?
@@ -165,15 +157,12 @@ module DiscourseRevisedCritiqueImage
               end
             ),
           "note" => @topic.custom_fields[REVISED_IMAGE_NOTE].presence,
-          "user_id" =>
-            @topic.custom_fields[REVISED_IMAGE_ADDED_BY_USER_ID]&.to_i,
+          "user_id" => @topic.custom_fields[REVISED_IMAGE_ADDED_BY_USER_ID]&.to_i,
           "created_at" =>
-            @topic.custom_fields[REVISED_IMAGE_ADDED_AT].presence ||
-              Time.zone.now.iso8601,
+            @topic.custom_fields[REVISED_IMAGE_ADDED_AT].presence || Time.zone.now.iso8601,
           "updated_at" =>
-            @topic.custom_fields[REVISED_IMAGE_ADDED_AT].presence ||
-              Time.zone.now.iso8601
-        }
+            @topic.custom_fields[REVISED_IMAGE_ADDED_AT].presence || Time.zone.now.iso8601,
+        },
       ]
     end
   end

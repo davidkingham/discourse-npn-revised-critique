@@ -1,0 +1,24 @@
+{
+  "name": "discourse-revised-critique-image",
+  "private": true,
+  "devDependencies": {
+    "@discourse/lint-configs": "3.0.1",
+    "ember-template-lint": "7.7.0",
+    "eslint": "9.39.2",
+    "prettier": "3.8.1",
+    "stylelint": "17.5.0"
+  },
+  "scripts": {
+    "lint:js": "eslint --no-error-on-unmatched-pattern assets/javascripts",
+    "lint:css": "stylelint --allow-empty-input 'assets/**/*.scss'",
+    "lint:prettier": "prettier --check 'assets/**/*.{scss,js,gjs,hbs}'",
+    "lint:hbs": "ember-template-lint --no-error-on-unmatched-pattern assets/javascripts"
+  },
+  "engines": {
+    "node": ">= 22",
+    "npm": "please-use-pnpm",
+    "yarn": "please-use-pnpm",
+    "pnpm": "^10"
+  },
+  "packageManager": "pnpm@10.28.0"
+}

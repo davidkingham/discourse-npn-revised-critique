@@ -22,13 +22,9 @@ module DiscourseRevisedCritiqueImage
 
     def check
       return failure(:invalid_mode) if MODES.exclude?(@mode)
-      unless SiteSetting.revised_critique_enabled
-        return failure(:plugin_disabled)
-      end
+      return failure(:plugin_disabled) unless SiteSetting.revised_critique_enabled
       return failure(:not_owner) if @user.blank?
-      if @user.respond_to?(:suspended?) && @user.suspended?
-        return failure(:not_owner)
-      end
+      return failure(:not_owner) if @user.respond_to?(:suspended?) && @user.suspended?
       return failure(:not_owner) unless @topic.user_id == @user.id
       return failure(:not_in_category) unless in_configured_category?
       return failure(:cannot_edit_post) unless topic_editable?

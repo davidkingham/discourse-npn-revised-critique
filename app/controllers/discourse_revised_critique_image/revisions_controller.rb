@@ -19,8 +19,7 @@ module DiscourseRevisedCritiqueImage
       mode = parse_mode
       return render_plugin_error(:invalid_mode, 422) if mode.nil?
 
-      eligibility =
-        Eligibility.check(topic: topic, user: current_user, mode: mode)
+      eligibility = Eligibility.check(topic: topic, user: current_user, mode: mode)
       return render_eligibility_error(eligibility) unless eligibility.ok
 
       # Defence in depth: even if Eligibility passed, re-check the strict
@@ -33,34 +32,19 @@ module DiscourseRevisedCritiqueImage
 
       upload = Upload.find_by(id: params[:upload_id])
       return render_plugin_error(:missing_upload, 404) if upload.blank?
-      unless valid_image_upload?(upload)
-        return render_plugin_error(:invalid_upload, 422)
-      end
+      return render_plugin_error(:invalid_upload, 422) unless valid_image_upload?(upload)
 
       note = params[:note].to_s.strip
       max = SiteSetting.revised_critique_note_max_length.to_i
-      if max > 0 && note.length > max
-        return render_plugin_error(:note_too_long, 422)
-      end
+      return render_plugin_error(:note_too_long, 422) if max > 0 && note.length > max
 
       apply_rate_limit!
 
       result =
-        RevisionAdder.call(
-          topic: topic,
-          upload: upload,
-          user: current_user,
-          note: note,
-          mode: mode
-        )
+        RevisionAdder.call(topic: topic, upload: upload, user: current_user, note: note, mode: mode)
       return render_plugin_error(result.error_key, 422) unless result.success
 
-      render json:
-               success_json.merge(
-                 topic_id: topic.id,
-                 upload_id: upload.id,
-                 mode: mode
-               )
+      render json: success_json.merge(topic_id: topic.id, upload_id: upload.id, mode: mode)
     rescue RateLimiter::LimitExceeded
       render_plugin_error(:rate_limited, 429)
     end
@@ -91,7 +75,7 @@ module DiscourseRevisedCritiqueImage
         current_user,
         "revised-critique-image",
         RATE_LIMIT_MAX,
-        RATE_LIMIT_PERIOD
+        RATE_LIMIT_PERIOD,
       ).performed!
     end
 
@@ -110,10 +94,8 @@ module DiscourseRevisedCritiqueImage
 
     def render_plugin_error(key, status)
       render json: {
-               errors: [
-                 I18n.t("discourse_revised_critique_image.errors.#{key}")
-               ],
-               error_key: key
+               errors: [I18n.t("discourse_revised_critique_image.errors.#{key}")],
+               error_key: key,
              },
              status: status
     end

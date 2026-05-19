@@ -7,8 +7,7 @@ module DiscourseRevisedCritiqueImage
     BEGIN_MARKER = "<!-- revised-critique-image:begin -->"
     END_MARKER = "<!-- revised-critique-image:end -->"
 
-    Result =
-      Struct.new(:success, :error_key, :error_message, keyword_init: true)
+    Result = Struct.new(:success, :error_key, :error_message, keyword_init: true)
 
     def self.call(topic:, upload:, user:, note: nil, mode: :add)
       new(topic: topic, upload: upload, user: user, note: note, mode: mode).call
@@ -43,7 +42,7 @@ module DiscourseRevisedCritiqueImage
           fields,
           skip_validations: true,
           bypass_bump: true,
-          skip_revision: false
+          skip_revision: false,
         )
       return failure(:revision_failed) unless saved
 
@@ -78,8 +77,7 @@ module DiscourseRevisedCritiqueImage
     def strip_existing_block(raw)
       return raw if raw.exclude?(BEGIN_MARKER) || raw.exclude?(END_MARKER)
 
-      pattern =
-        /#{Regexp.escape(BEGIN_MARKER)}.*?#{Regexp.escape(END_MARKER)}\s*/m
+      pattern = /#{Regexp.escape(BEGIN_MARKER)}.*?#{Regexp.escape(END_MARKER)}\s*/m
       cleaned = raw.sub(pattern, "")
       cleaned.sub(/\A## #{Regexp.escape(original_heading)}\s*\n+/, "")
     end
@@ -108,10 +106,7 @@ module DiscourseRevisedCritiqueImage
 
     def label_for(entry, latest:)
       key = latest ? "latest_revision_label" : "previous_revision_label"
-      I18n.t(
-        "discourse_revised_critique_image.#{key}",
-        number: entry["revision_number"]
-      )
+      I18n.t("discourse_revised_critique_image.#{key}", number: entry["revision_number"])
     end
 
     def image_markdown(entry)
@@ -175,7 +170,7 @@ module DiscourseRevisedCritiqueImage
         notice_reply_user,
         topic_id: @topic.id,
         raw: I18n.t("discourse_revised_critique_image.notice_reply"),
-        skip_validations: true
+        skip_validations: true,
       )
     end
 

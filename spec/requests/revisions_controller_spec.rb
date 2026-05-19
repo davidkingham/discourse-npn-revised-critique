@@ -5,32 +5,16 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
   fab!(:owner) { Fabricate(:user, trust_level: TrustLevel[1]) }
   fab!(:other_user) { Fabricate(:user, trust_level: TrustLevel[1]) }
   fab!(:topic) do
-    Fabricate(
-      :topic,
-      category: category,
-      user: owner,
-      title: "Critique my image please"
-    )
+    Fabricate(:topic, category: category, user: owner, title: "Critique my image please")
   end
   fab!(:first_post) do
-    Fabricate(
-      :post,
-      topic: topic,
-      user: owner,
-      raw: "Original critique image post."
-    )
+    Fabricate(:post, topic: topic, user: owner, raw: "Original critique image post.")
   end
 
   let(:endpoint) { "/revised-critique-image/topics/#{topic.id}/revisions.json" }
 
   def fab_upload(filename: "rev.png", width: 800, height: 600)
-    Fabricate(
-      :upload,
-      user: owner,
-      original_filename: filename,
-      width: width,
-      height: height
-    )
+    Fabricate(:upload, user: owner, original_filename: filename, width: width, height: height)
   end
 
   before do
@@ -50,24 +34,13 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
     end
 
     context "with a reply from another user" do
-      before do
-        Fabricate(
-          :post,
-          topic: topic,
-          user: other_user,
-          raw: "Some feedback for you."
-        )
-      end
+      before { Fabricate(:post, topic: topic, user: other_user, raw: "Some feedback for you.") }
 
       describe "add (first revision)" do
         let(:upload) { fab_upload }
 
         it "creates Revision 1, appends the title marker, and renders the block" do
-          post endpoint,
-               params: {
-                 upload_id: upload.id,
-                 note: "  Pulled back highlights.  "
-               }
+          post endpoint, params: { upload_id: upload.id, note: "  Pulled back highlights.  " }
 
           expect(response.status).to eq(200)
           topic.reload
@@ -99,11 +72,7 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
 
       describe "add (subsequent revisions)" do
         before do
-          post endpoint,
-               params: {
-                 upload_id: fab_upload(filename: "r1.png").id,
-                 note: "first"
-               }
+          post endpoint, params: { upload_id: fab_upload(filename: "r1.png").id, note: "first" }
           expect(response.status).to eq(200)
         end
 
@@ -112,8 +81,7 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
           post endpoint, params: { upload_id: r2.id, note: "second" }
 
           expect(response.status).to eq(200)
-          history =
-            DiscourseRevisedCritiqueImage::RevisionHistory.for(topic.reload)
+          history = DiscourseRevisedCritiqueImage::RevisionHistory.for(topic.reload)
           expect(history.count).to eq(2)
           expect(history.entries.map { |e| e["revision_number"] }).to eq([1, 2])
           expect(history.latest["upload_id"]).to eq(r2.id)
@@ -125,76 +93,49 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
         end
 
         it "does not duplicate the title marker on subsequent adds" do
-          post endpoint,
-               params: {
-                 upload_id: fab_upload(filename: "r2.png").id
-               }
-          expect(topic.reload.title).to eq(
-            "Critique my image please (+revised)"
-          )
+          post endpoint, params: { upload_id: fab_upload(filename: "r2.png").id }
+          expect(topic.reload.title).to eq("Critique my image please (+revised)")
 
-          post endpoint,
-               params: {
-                 upload_id: fab_upload(filename: "r3.png").id
-               }
-          expect(topic.reload.title).to eq(
-            "Critique my image please (+revised)"
-          )
+          post endpoint, params: { upload_id: fab_upload(filename: "r3.png").id }
+          expect(topic.reload.title).to eq("Critique my image please (+revised)")
         end
 
         it "rejects add when at max revisions" do
           SiteSetting.revised_critique_max_revisions = 1
 
-          post endpoint,
-               params: {
-                 upload_id: fab_upload(filename: "r2.png").id
-               }
+          post endpoint, params: { upload_id: fab_upload(filename: "r2.png").id }
 
           expect(response.status).to eq(422)
-          expect(response.parsed_body["error_key"]).to eq(
-            "max_revisions_reached"
-          )
+          expect(response.parsed_body["error_key"]).to eq("max_revisions_reached")
         end
       end
 
       describe "replace_latest" do
         it "is rejected when no revisions exist yet" do
-          post endpoint,
-               params: {
-                 upload_id: fab_upload.id,
-                 mode: "replace_latest"
-               }
+          post endpoint, params: { upload_id: fab_upload.id, mode: "replace_latest" }
           expect(response.status).to eq(422)
-          expect(response.parsed_body["error_key"]).to eq(
-            "no_revision_to_replace"
-          )
+          expect(response.parsed_body["error_key"]).to eq("no_revision_to_replace")
         end
 
         context "after a first revision" do
           let!(:initial_upload) { fab_upload(filename: "r1.png") }
 
           before do
-            post endpoint,
-                 params: {
-                   upload_id: initial_upload.id,
-                   note: "first"
-                 }
+            post endpoint, params: { upload_id: initial_upload.id, note: "first" }
             expect(response.status).to eq(200)
           end
 
           it "replaces only the latest entry, keeping the revision number" do
-            replacement =
-              fab_upload(filename: "r1b.png", width: 700, height: 500)
+            replacement = fab_upload(filename: "r1b.png", width: 700, height: 500)
             post endpoint,
                  params: {
                    upload_id: replacement.id,
                    note: "corrected",
-                   mode: "replace_latest"
+                   mode: "replace_latest",
                  }
 
             expect(response.status).to eq(200)
-            history =
-              DiscourseRevisedCritiqueImage::RevisionHistory.for(topic.reload)
+            history = DiscourseRevisedCritiqueImage::RevisionHistory.for(topic.reload)
             expect(history.count).to eq(1)
             expect(history.latest["revision_number"]).to eq(1)
             expect(history.latest["upload_id"]).to eq(replacement.id)
@@ -212,16 +153,10 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
             expect(response.status).to eq(200)
 
             r2b = fab_upload(filename: "r2b.png")
-            post endpoint,
-                 params: {
-                   upload_id: r2b.id,
-                   note: "fixed",
-                   mode: "replace_latest"
-                 }
+            post endpoint, params: { upload_id: r2b.id, note: "fixed", mode: "replace_latest" }
             expect(response.status).to eq(200)
 
-            history =
-              DiscourseRevisedCritiqueImage::RevisionHistory.for(topic.reload)
+            history = DiscourseRevisedCritiqueImage::RevisionHistory.for(topic.reload)
             expect(history.count).to eq(2)
             expect(history.entries[0]["upload_id"]).to eq(initial_upload.id)
             expect(history.entries[1]["upload_id"]).to eq(r2b.id)
@@ -232,15 +167,10 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
             SiteSetting.revised_critique_max_revisions = 1
             replacement = fab_upload(filename: "r1b.png")
 
-            post endpoint,
-                 params: {
-                   upload_id: replacement.id,
-                   mode: "replace_latest"
-                 }
+            post endpoint, params: { upload_id: replacement.id, mode: "replace_latest" }
 
             expect(response.status).to eq(200)
-            history =
-              DiscourseRevisedCritiqueImage::RevisionHistory.for(topic.reload)
+            history = DiscourseRevisedCritiqueImage::RevisionHistory.for(topic.reload)
             expect(history.count).to eq(1)
             expect(history.latest["upload_id"]).to eq(replacement.id)
           end
@@ -248,11 +178,7 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
       end
 
       it "rejects unknown modes" do
-        post endpoint,
-             params: {
-               upload_id: fab_upload.id,
-               mode: "delete_everything"
-             }
+        post endpoint, params: { upload_id: fab_upload.id, mode: "delete_everything" }
         expect(response.status).to eq(422)
         expect(response.parsed_body["error_key"]).to eq("invalid_mode")
       end
@@ -279,11 +205,7 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
     end
 
     it "is rejected on replace_latest" do
-      post endpoint,
-           params: {
-             upload_id: fab_upload.id,
-             mode: "replace_latest"
-           }
+      post endpoint, params: { upload_id: fab_upload.id, mode: "replace_latest" }
       expect(response.status).to eq(422)
       expect(response.parsed_body["error_key"]).to eq("not_owner")
     end
@@ -317,7 +239,7 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
           original_filename: "logo.svg",
           extension: "svg",
           width: 100,
-          height: 100
+          height: 100,
         )
       post endpoint, params: { upload_id: svg.id }
       expect(response.status).to eq(422)
@@ -327,11 +249,7 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
     it "rate-limits non-staff" do
       RateLimiter.enable
       freeze_time
-      stub_const(
-        DiscourseRevisedCritiqueImage::RevisionsController,
-        :RATE_LIMIT_MAX,
-        1
-      ) do
+      stub_const(DiscourseRevisedCritiqueImage::RevisionsController, :RATE_LIMIT_MAX, 1) do
         post endpoint, params: { upload_id: fab_upload(filename: "a.png").id }
         expect(response.status).to eq(200)
 

@@ -49,7 +49,9 @@ export default class RevisedImageBanner extends Component {
       case "first":
         return i18n("discourse_revised_critique_image.eligible_message");
       case "mixed":
-        return i18n("discourse_revised_critique_image.can_replace_or_add_message");
+        return i18n(
+          "discourse_revised_critique_image.can_replace_or_add_message"
+        );
       case "atMax":
         return i18n("discourse_revised_critique_image.at_max_message");
     }

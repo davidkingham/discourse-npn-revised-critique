@@ -35,12 +35,17 @@ export default class RevisedImageModal extends Component {
   }
 
   get isFirstRevision() {
-    return !this.isReplaceMode && (this.topic?.revised_critique_image_revision_count || 0) === 0;
+    return (
+      !this.isReplaceMode &&
+      (this.topic?.revised_critique_image_revision_count || 0) === 0
+    );
   }
 
   get title() {
     if (this.isReplaceMode) {
-      return i18n("discourse_revised_critique_image.modal.title_replace_latest");
+      return i18n(
+        "discourse_revised_critique_image.modal.title_replace_latest"
+      );
     }
     if (this.isFirstRevision) {
       return i18n("discourse_revised_critique_image.modal.title_add_first");
@@ -59,7 +64,9 @@ export default class RevisedImageModal extends Component {
   }
 
   get maxNoteLength() {
-    return parseInt(this.siteSettings.revised_critique_note_max_length, 10) || 500;
+    return (
+      parseInt(this.siteSettings.revised_critique_note_max_length, 10) || 500
+    );
   }
 
   get noteTooLong() {
@@ -143,7 +150,10 @@ export default class RevisedImageModal extends Component {
         />
 
         <div class="revised-image-modal__note">
-          <label for="revised-image-note" class="revised-image-modal__note-label">
+          <label
+            for="revised-image-note"
+            class="revised-image-modal__note-label"
+          >
             {{i18n "discourse_revised_critique_image.modal.note_label"}}
           </label>
           <p class="revised-image-modal__note-helper">
@@ -184,7 +194,8 @@ export default class RevisedImageModal extends Component {
           class="btn-primary revised-image-modal__submit"
           @action={{this.submit}}
           @disabled={{this.submitDisabled}}
-          @label={{if this.submitting
+          @label={{if
+            this.submitting
             "discourse_revised_critique_image.modal.submitting"
             this.submitLabelKey
           }}

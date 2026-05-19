@@ -20,7 +20,7 @@ module DiscourseRevisedCritiqueImage
         added_at: latest["created_at"],
         updated_at: latest["updated_at"],
         added_by_user_id: latest["user_id"],
-        note: latest["note"]
+        note: latest["note"],
       }
     end
 
@@ -39,11 +39,7 @@ module DiscourseRevisedCritiqueImage
 
     def can_replace_latest_revised_critique_image
       return false if scope&.user.blank?
-      Eligibility.check(
-        topic: object.topic,
-        user: scope.user,
-        mode: :replace_latest
-      ).ok
+      Eligibility.check(topic: object.topic, user: scope.user, mode: :replace_latest).ok
     end
 
     private

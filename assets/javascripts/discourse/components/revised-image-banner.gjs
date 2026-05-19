@@ -70,6 +70,10 @@ export default class RevisedImageBanner extends Component {
     return this.state === "first" ? "add" : "replace_latest";
   }
 
+  get primaryButtonIcon() {
+    return this.state === "first" ? "image" : "arrows-rotate";
+  }
+
   get showAddAnotherButton() {
     return this.state === "mixed";
   }
@@ -107,7 +111,7 @@ export default class RevisedImageBanner extends Component {
           <DButton
             class="btn-primary revised-image-banner__button revised-image-banner__primary"
             @action={{this.openPrimary}}
-            @icon="wand-magic-sparkles"
+            @icon={{this.primaryButtonIcon}}
             @translatedLabel={{this.primaryButtonLabel}}
           />
           {{#if this.showAddAnotherButton}}

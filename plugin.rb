@@ -12,7 +12,8 @@ enabled_site_setting :revised_critique_enabled
 register_asset "stylesheets/revised-critique-image.scss"
 
 register_svg_icon "image"
-register_svg_icon "wand-magic-sparkles"
+register_svg_icon "arrows-rotate"
+register_svg_icon "plus"
 
 module ::DiscourseRevisedCritiqueImage
   PLUGIN_NAME = "discourse-revised-critique-image"

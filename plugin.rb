@@ -35,6 +35,7 @@ require_relative "lib/discourse_revised_critique_image/engine"
 
 after_initialize do
   require_relative "app/controllers/discourse_revised_critique_image/revisions_controller"
+  require_relative "lib/discourse_revised_critique_image/npn_metadata"
   require_relative "lib/discourse_revised_critique_image/revision_history"
   require_relative "lib/discourse_revised_critique_image/revision_adder"
   require_relative "lib/discourse_revised_critique_image/eligibility"
@@ -53,7 +54,30 @@ after_initialize do
   Topic.register_custom_field_type(DiscourseRevisedCritiqueImage::REVISED_IMAGE_ADDED_AT, :string)
   Topic.register_custom_field_type(DiscourseRevisedCritiqueImage::REVISED_IMAGE_NOTE, :string)
 
+  # NPN-namespaced snapshot of revision images, consumed by sibling plugins
+  # (discourse-npn-critique-reply). Registered with their respective types so
+  # they round-trip cleanly between Ruby and the topic_custom_fields table.
+  Topic.register_custom_field_type(
+    DiscourseRevisedCritiqueImage::NpnMetadata::REVISION_COUNT,
+    :integer,
+  )
+  Topic.register_custom_field_type(
+    DiscourseRevisedCritiqueImage::NpnMetadata::LATEST_REVISION_UPLOAD_ID,
+    :integer,
+  )
+  Topic.register_custom_field_type(
+    DiscourseRevisedCritiqueImage::NpnMetadata::LATEST_REVISION_IMAGE_URL,
+    :string,
+  )
+  Topic.register_custom_field_type(
+    DiscourseRevisedCritiqueImage::NpnMetadata::REVISION_IMAGES,
+    :json,
+  )
+  Topic.register_custom_field_type(DiscourseRevisedCritiqueImage::NpnMetadata::SCHEMA, :integer)
+
   TopicList.preloaded_custom_fields << DiscourseRevisedCritiqueImage::REVISED_IMAGE_UPLOAD_ID
+  TopicList.preloaded_custom_fields << DiscourseRevisedCritiqueImage::NpnMetadata::LATEST_REVISION_UPLOAD_ID
+  TopicList.preloaded_custom_fields << DiscourseRevisedCritiqueImage::NpnMetadata::LATEST_REVISION_IMAGE_URL
 
   TopicViewSerializer.prepend DiscourseRevisedCritiqueImage::TopicViewSerializerExtension
 end

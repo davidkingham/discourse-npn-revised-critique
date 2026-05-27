@@ -116,7 +116,21 @@ module DiscourseRevisedCritiqueImage
       @entries = new_entries
       @topic.custom_fields[REVISED_IMAGE_HISTORY] = new_entries
       sync_denormalised_fields!(new_entries.last)
+      sync_npn_metadata!(new_entries)
       @topic.save_custom_fields(true)
+    end
+
+    # Best-effort: never block a successful revision on an npn metadata
+    # snapshot failure. Downstream NPN plugins can recover the latest state
+    # on the next revision write, and the canonical revision history is
+    # untouched here.
+    def sync_npn_metadata!(new_entries)
+      NpnMetadata.apply!(@topic, new_entries)
+    rescue => e
+      Rails.logger.warn(
+        "discourse-revised-critique-image: NPN metadata snapshot failed for " \
+          "topic #{@topic.id}: #{e.class}: #{e.message}",
+      )
     end
 
     # Keep the v1.2 scalar fields pointing at the latest entry so they remain

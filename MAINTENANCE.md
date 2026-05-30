@@ -36,8 +36,13 @@ plugin JS.
 ## Testing before a Discourse update
 
 CI is wired through `discourse/.github/.github/workflows/discourse-plugin.yml@v1`
-and tests against `core_ref: "latest"` by default. Two quick ways to test
-against an upcoming Discourse release **before** it lands:
+and tests **only** against `core_ref: main` (Discourse "latest" /
+tests-passed), because that's what the single production site runs.
+Stable isn't a target — see `.github/workflows/discourse-plugin.yml`
+for the rationale.
+
+Two quick ways to test against an upcoming Discourse release **before**
+it lands:
 
 1. **Locally**: check out the upcoming release branch (e.g. `release/2026.4`)
    inside your local Discourse and run the plugin's full suite:
@@ -63,8 +68,9 @@ against an upcoming Discourse release **before** it lands:
 
    Open a draft PR with that change, watch it run, revert before merging.
 
-When Discourse cuts a `stable` or `beta` release, run the suite against
-those refs too if you support multiple release channels.
+When Discourse cuts a `beta` release that the production site is about
+to pick up, run the suite against that ref using the same edit pattern
+above (`core_ref: beta`) before the rebuild.
 
 ## Fragile integration points
 

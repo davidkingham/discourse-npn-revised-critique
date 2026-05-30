@@ -1,11 +1,17 @@
 name: Discourse Plugin
 
 # Triggers:
-#   - push to main      → every merge runs the full matrix
+#   - push to main      → every merge runs CI
 #   - pull_request      → CI on every PR commit
 #   - workflow_dispatch → run manually from the Actions tab
 #   - schedule (weekly) → catch upstream Discourse changes that break
 #                         this plugin even when its own code is unchanged
+#
+# Only `main` (a.k.a. Discourse "latest" / tests-passed) is tested.
+# Stable isn't a target — this plugin is deployed to a single forum
+# tracking tests-passed, so supporting older Discourse branches would
+# add maintenance cost (e.g. avoiding ui-kit/ imports) for no real
+# audience.
 on:
   push:
     branches:
@@ -27,13 +33,5 @@ concurrency:
 jobs:
   ci:
     uses: discourse/.github/.github/workflows/discourse-plugin.yml@v1
-    strategy:
-      fail-fast: false
-      matrix:
-        core_ref:
-          # "Latest" — Discourse's main branch (rolling).
-          - main
-          # "Stable" — Discourse's latest stable release branch.
-          - stable
     with:
-      core_ref: ${{ matrix.core_ref }}
+      core_ref: main

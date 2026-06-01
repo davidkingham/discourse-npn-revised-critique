@@ -127,4 +127,52 @@ describe TopicViewSerializer do
       expect(json).to have_key("revised_critique_image_max_revisions")
     end
   end
+
+  # Phase 2.5 cross-check: detection alone isn't enough, the eligibility
+  # gate must actually flip the single-image can_* booleans off on
+  # project topics so the frontend buttons disappear.
+  describe "single-image eligibility is gated off on project topics" do
+    let!(:reply) { Fabricate(:post, topic: topic, user: Fabricate(:user), raw: "Feedback") }
+
+    before do
+      SiteSetting.revised_critique_category_id = category.id
+      install_project_payload!(images: [well_formed_image(position: 1)])
+    end
+
+    it "reports can_add_revised_critique_image = false" do
+      json = serialize(owner)
+      expect(json["can_add_revised_critique_image"]).to eq(false)
+    end
+
+    it "reports can_replace_latest_revised_critique_image = false" do
+      json = serialize(owner)
+      expect(json["can_replace_latest_revised_critique_image"]).to eq(false)
+    end
+
+    it "does not crash when the project payload is malformed" do
+      topic.custom_fields[data_key] = { "type" => "project_critique" }
+      topic.save_custom_fields(true)
+
+      expect { serialize(owner) }.not_to raise_error
+      json = serialize(owner)
+      # Gate still fires because the topic is still flagged as a project
+      # via npn_submission_type, even if the structured payload is bad.
+      expect(json["can_add_revised_critique_image"]).to eq(false)
+      expect(json["can_replace_latest_revised_critique_image"]).to eq(false)
+    end
+  end
+
+  # Sanity: the gate is targeted, not a blanket "always false" change.
+  # A normal single-image topic in the configured category with the
+  # required reply present still gets can_add = true.
+  describe "single-image eligibility on non-project topics is unchanged" do
+    let!(:reply) { Fabricate(:post, topic: topic, user: Fabricate(:user), raw: "Feedback") }
+
+    before { SiteSetting.revised_critique_category_id = category.id }
+
+    it "still reports can_add_revised_critique_image = true" do
+      json = serialize(owner)
+      expect(json["can_add_revised_critique_image"]).to eq(true)
+    end
+  end
 end

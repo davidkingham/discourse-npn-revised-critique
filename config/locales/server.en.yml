@@ -34,3 +34,4 @@ en:
       invalid_mode: "Unknown action. Please refresh the page and try again."
       max_revisions_reached: "You've reached the maximum number of revisions for this topic. You can still replace your latest revision."
       no_revision_to_replace: "There is no revision to replace yet. Add a revision first."
+      project_topic_unsupported: "Single-image revisions are not supported on project critique topics. A project revision tool is coming soon."

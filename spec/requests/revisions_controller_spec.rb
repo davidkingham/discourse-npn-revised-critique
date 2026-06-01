@@ -218,6 +218,75 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
     end
   end
 
+  context "when the topic is a project critique submission" do
+    let(:submission_type_key) do
+      DiscourseRevisedCritiqueImage::SubmissionsCompat.submission_type_key
+    end
+    let(:data_key) { DiscourseRevisedCritiqueImage::SubmissionsCompat.project_data_key }
+    let(:begin_marker) { DiscourseRevisedCritiqueImage::SubmissionsCompat.block_begin }
+    let(:end_marker) { DiscourseRevisedCritiqueImage::SubmissionsCompat.block_end }
+
+    before do
+      Fabricate(:post, topic: topic, user: other_user, raw: "Feedback")
+      sign_in(owner)
+
+      topic.custom_fields[submission_type_key] = "project_critique"
+      topic.custom_fields[data_key] = {
+        "type" => "project_critique",
+        "version" => 1,
+        "images" => [
+          {
+            "id" => "a1b2c3d4e5f60718",
+            "position" => 1,
+            "upload_id" => 42,
+            "short_url" => "upload://abc.jpeg",
+            "caption" => "",
+            "alt" => "Image 1",
+          },
+        ],
+      }
+      topic.save_custom_fields(true)
+      first_post.update!(raw: "#{begin_marker}\n\nstuff\n\n#{end_marker}")
+    end
+
+    it "rejects add with project_topic_unsupported" do
+      post endpoint, params: { upload_id: fab_upload.id }
+      expect(response.status).to eq(422)
+      expect(response.parsed_body["error_key"]).to eq("project_topic_unsupported")
+    end
+
+    it "rejects replace_latest with project_topic_unsupported" do
+      post endpoint, params: { upload_id: fab_upload.id, mode: "replace_latest" }
+      expect(response.status).to eq(422)
+      expect(response.parsed_body["error_key"]).to eq("project_topic_unsupported")
+    end
+
+    it "does not write any revision history" do
+      post endpoint, params: { upload_id: fab_upload.id }
+      history = DiscourseRevisedCritiqueImage::RevisionHistory.for(topic.reload)
+      expect(history.count).to eq(0)
+    end
+
+    it "does not mutate the first post raw" do
+      before_raw = first_post.reload.raw
+      post endpoint, params: { upload_id: fab_upload.id }
+      expect(first_post.reload.raw).to eq(before_raw)
+    end
+
+    it "still rejects when the project payload is malformed" do
+      # Eligibility must not crash on bad project data; it should still
+      # treat the topic as a project topic (because npn_submission_type
+      # is set) and refuse, rather than letting single-image proceed.
+      topic.custom_fields[data_key] = { "type" => "project_critique" } # missing version + images
+      topic.save_custom_fields(true)
+
+      post endpoint, params: { upload_id: fab_upload.id }
+      # The reader returns project? true with valid? false; gate fires.
+      expect(response.status).to eq(422)
+      expect(response.parsed_body["error_key"]).to eq("project_topic_unsupported")
+    end
+  end
+
   context "with security guards" do
     before do
       Fabricate(:post, topic: topic, user: other_user, raw: "Feedback")

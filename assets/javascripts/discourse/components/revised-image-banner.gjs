@@ -8,6 +8,7 @@ import RevisedImageModal from "./modal/revised-image-modal";
 export default class RevisedImageBanner extends Component {
   @service modal;
   @service siteSettings;
+  @service currentUser;
 
   get topic() {
     return this.args.outletArgs?.model;
@@ -27,6 +28,34 @@ export default class RevisedImageBanner extends Component {
 
   get show() {
     return this.pluginEnabled && (this.canAdd || this.canReplaceLatest);
+  }
+
+  // Project-critique topics route through a future editor; the single-image
+  // flow is gated out server-side. Surface a small explanatory message so
+  // the OP (and admins debugging) understand why the usual revision buttons
+  // are absent, without showing it to readers who'd never have seen them.
+  get isProjectTopic() {
+    return this.topic?.revised_critique_revision_type === "project";
+  }
+
+  get isTopicOwner() {
+    return (
+      this.currentUser?.id &&
+      this.topic?.user_id &&
+      this.currentUser.id === this.topic.user_id
+    );
+  }
+
+  get isStaff() {
+    return Boolean(this.currentUser?.staff);
+  }
+
+  get showProjectMessage() {
+    return (
+      this.pluginEnabled &&
+      this.isProjectTopic &&
+      (this.isTopicOwner || this.isStaff)
+    );
   }
 
   get hasRevisions() {
@@ -125,6 +154,15 @@ export default class RevisedImageBanner extends Component {
             />
           {{/if}}
         </div>
+      </div>
+    {{else if this.showProjectMessage}}
+      <div
+        class="revised-image-banner revised-image-banner--project"
+        data-revised-image-banner-state="project"
+      >
+        <p class="revised-image-banner__message">
+          {{i18n "discourse_revised_critique_image.project_coming_soon"}}
+        </p>
       </div>
     {{/if}}
   </template>

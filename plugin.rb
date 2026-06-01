@@ -39,6 +39,8 @@ after_initialize do
   require_relative "lib/discourse_revised_critique_image/revision_history"
   require_relative "lib/discourse_revised_critique_image/revision_adder"
   require_relative "lib/discourse_revised_critique_image/eligibility"
+  require_relative "lib/discourse_revised_critique_image/submissions_compat"
+  require_relative "lib/discourse_revised_critique_image/project_submission_reader"
   require_relative "lib/extensions/topic_view_serializer_extension"
 
   Discourse::Application.routes.append do

@@ -7,7 +7,12 @@ module DiscourseRevisedCritiqueImage
                       :revised_critique_image_revision_count,
                       :revised_critique_image_max_revisions,
                       :can_add_revised_critique_image,
-                      :can_replace_latest_revised_critique_image
+                      :can_replace_latest_revised_critique_image,
+                      :revised_critique_revision_type,
+                      :revised_critique_project_detected,
+                      :revised_critique_project_valid,
+                      :revised_critique_project_image_count,
+                      :revised_critique_project_error_key
     end
 
     def revised_critique_image
@@ -42,10 +47,67 @@ module DiscourseRevisedCritiqueImage
       Eligibility.check(topic: object.topic, user: scope.user, mode: :replace_latest).ok
     end
 
+    # ---- Phase 2: project critique handoff (read-only) -------------------
+    # These attributes let the frontend tell whether a topic was created
+    # by discourse-npn-submissions' project flow, and whether the
+    # structured payload is in a shape a future project-revision editor
+    # could safely consume. They never mutate anything.
+
+    def revised_critique_revision_type
+      project_reader_result.project? ? "project" : "single_image"
+    end
+
+    def revised_critique_project_detected
+      project_reader_result.project?
+    end
+
+    def revised_critique_project_valid
+      project_reader_result.valid?
+    end
+
+    def revised_critique_project_image_count
+      project_reader_result.image_count
+    end
+
+    # Surfaced only for staff so admins can diagnose handoff problems on
+    # production topics without exposing internal error key vocabulary to
+    # normal users.
+    def revised_critique_project_error_key
+      return nil unless scope&.user&.staff?
+      project_reader_result.error_key&.to_s
+    end
+
     private
 
     def history
       @_revised_critique_history ||= RevisionHistory.for(object.topic)
+    end
+
+    # Compute once per serializer instance. Wrapped in a rescue so a bug
+    # in the reader (or a sibling-plugin API drift) can't take down topic
+    # rendering — the topic still serializes, just with the Phase 2
+    # attributes reporting "not a project topic".
+    def project_reader_result
+      @_project_reader_result ||=
+        begin
+          ProjectSubmissionReader.read(object.topic)
+        rescue => e
+          Rails.logger.warn(
+            "discourse-revised-critique-image: ProjectSubmissionReader " \
+              "raised for topic #{object.topic&.id}: #{e.class}: #{e.message}",
+          )
+          ProjectSubmissionReader::Result.new(
+            project?: false,
+            valid?: false,
+            error_key: :reader_raised,
+            images: [],
+            image_count: 0,
+            begin_offset: nil,
+            end_offset: nil,
+            begin_marker: nil,
+            end_marker: nil,
+          )
+        end
     end
   end
 end

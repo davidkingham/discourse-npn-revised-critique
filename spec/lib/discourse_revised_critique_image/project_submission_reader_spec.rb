@@ -40,7 +40,6 @@ describe DiscourseRevisedCritiqueImage::ProjectSubmissionReader do
     post.update!(raw: body)
   end
 
-
   describe "single-image (non-project) topics" do
     it "returns project? = false and valid? = false with no error_key" do
       expect(result.project?).to eq(false)

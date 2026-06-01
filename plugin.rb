@@ -77,6 +77,17 @@ after_initialize do
   )
   Topic.register_custom_field_type(DiscourseRevisedCritiqueImage::NpnMetadata::SCHEMA, :integer)
 
+  # Defensively co-register the sibling submissions plugin's structured
+  # project payload as :json so the Hash round-trips correctly through
+  # topic_custom_fields even when discourse-npn-submissions isn't loaded
+  # (e.g. in this plugin's own CI checkout, which clones it standalone).
+  # When the submissions plugin IS loaded, this is a redundant — and
+  # idempotent — registration: it owns the field, we only ever read it.
+  Topic.register_custom_field_type(
+    DiscourseRevisedCritiqueImage::SubmissionsCompat.project_data_key,
+    :json,
+  )
+
   TopicList.preloaded_custom_fields << DiscourseRevisedCritiqueImage::REVISED_IMAGE_UPLOAD_ID
   TopicList.preloaded_custom_fields << DiscourseRevisedCritiqueImage::NpnMetadata::LATEST_REVISION_UPLOAD_ID
   TopicList.preloaded_custom_fields << DiscourseRevisedCritiqueImage::NpnMetadata::LATEST_REVISION_IMAGE_URL

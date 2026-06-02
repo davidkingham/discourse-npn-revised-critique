@@ -113,19 +113,39 @@
     }
   }
 
+  &__sequence {
+    margin: var(--space-4, 1rem) 0 var(--space-2, 0.5rem);
+
+    &-heading {
+      margin: 0 0 var(--space-1, 0.25rem);
+      font-size: var(--font-up-1);
+      font-weight: 600;
+    }
+
+    &-helper {
+      margin: 0;
+      color: var(--primary-medium);
+      font-size: var(--font-down-1);
+    }
+  }
+
   &__cards {
     list-style: none;
     margin: 0;
     padding: 0;
     display: grid;
-    gap: var(--space-3, 0.75rem);
+    gap: var(--space-2, 0.5rem);
   }
 
   &__card {
     display: grid;
-    grid-template-columns: 160px 1fr;
-    gap: var(--space-3, 0.75rem);
-    padding: var(--space-3, 0.75rem);
+
+    // Tighter thumb column so 8–12 cards don't dominate the viewport.
+    grid-template-columns: 120px 1fr;
+    gap: var(--space-2, 0.5rem);
+
+    // Reduced vertical padding — the card is dense by design now.
+    padding: var(--space-2, 0.5rem);
     background: var(--primary-very-low);
     border: 1px solid var(--primary-low);
     border-radius: var(--d-border-radius, 4px);
@@ -138,7 +158,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 100px;
+      min-height: 80px;
       background: var(--secondary);
       border-radius: var(--d-border-radius, 4px);
       overflow: hidden;
@@ -146,7 +166,10 @@
 
     &-image {
       max-width: 100%;
-      max-height: 200px;
+
+      // Shorter than the previous 200px so a portrait image doesn't
+      // double the card's height.
+      max-height: 120px;
       height: auto;
       display: block;
     }
@@ -161,30 +184,86 @@
     &-meta {
       display: flex;
       flex-direction: column;
+      gap: var(--space-1, 0.25rem);
+
+      // Allow the meta column to shrink instead of pushing buttons off-row.
+      min-width: 0;
+    }
+
+    // Position label + reorder controls share a row at the top of the
+    // meta column so the visual emphasis is the image sequence number,
+    // not the destructive actions.
+    &-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       gap: var(--space-2, 0.5rem);
-      min-width: 0; // allow the meta column to shrink instead of pushing
     }
 
     &-position {
       font-weight: 600;
       color: var(--primary);
+      font-size: var(--font-down-1);
+    }
+
+    &-reorder {
+      display: inline-flex;
+      gap: 2px;
+
+      // Tight icon-only buttons. Disabled state is muted (default
+      // `:disabled` opacity), so first/last cards still read clearly.
+      .btn-flat {
+        padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem);
+        line-height: 1;
+      }
     }
 
     &-caption-label {
       display: flex;
       flex-direction: column;
-      gap: var(--space-1, 0.25rem);
-      font-size: var(--font-down-1);
+      gap: 2px;
+      font-size: var(--font-down-2);
+      color: var(--primary-medium);
     }
 
     &-caption-input {
       width: 100%;
+      font-size: var(--font-down-1);
     }
 
     &-actions {
       display: flex;
       flex-wrap: wrap;
       gap: var(--space-1, 0.25rem);
+      margin-top: var(--space-1, 0.25rem);
+
+      .btn-flat {
+        padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem);
+        font-size: var(--font-down-1);
+      }
+    }
+
+    // Quiet destructive style for "Remove from revision". Muted by
+    // default so a long list of cards doesn't read as a wall of red,
+    // but the action surfaces with full danger color on hover/focus
+    // and the icon stays in the danger hue so the meaning is visible
+    // even without interaction.
+    &-remove {
+      color: var(--primary-medium);
+
+      .d-icon {
+        color: var(--danger);
+      }
+
+      &:hover:not(:disabled),
+      &:focus-visible:not(:disabled) {
+        color: var(--danger);
+        background: var(--danger-low);
+      }
+
+      &:disabled {
+        opacity: 0.4;
+      }
     }
   }
 

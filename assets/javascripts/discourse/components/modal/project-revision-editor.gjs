@@ -366,6 +366,19 @@ export default class ProjectRevisionEditor extends Component {
           ></textarea>
         </div>
 
+        <div class="project-revision-editor__sequence">
+          <h3 class="project-revision-editor__sequence-heading">
+            {{i18n
+              "discourse_revised_critique_image.project_editor.sequence_heading"
+            }}
+          </h3>
+          <p class="project-revision-editor__sequence-helper">
+            {{i18n
+              "discourse_revised_critique_image.project_editor.sequence_helper"
+            }}
+          </p>
+        </div>
+
         <ol class="project-revision-editor__cards" aria-live="polite">
           {{#each this.images key="id" as |card idx|}}
             <li
@@ -390,9 +403,35 @@ export default class ProjectRevisionEditor extends Component {
                 {{/if}}
               </div>
               <div class="project-revision-editor__card-meta">
-                <span class="project-revision-editor__card-position">
-                  {{this.positionLabel idx}}
-                </span>
+                <div class="project-revision-editor__card-header">
+                  <span class="project-revision-editor__card-position">
+                    {{this.positionLabel idx}}
+                  </span>
+                  <div
+                    class="project-revision-editor__card-reorder"
+                    role="group"
+                    aria-label={{i18n
+                      "discourse_revised_critique_image.project_editor.reorder_group_label"
+                    }}
+                  >
+                    <DButton
+                      class="btn-flat project-revision-editor__card-move-left"
+                      @action={{fn this.moveLeft idx}}
+                      @disabled={{eq idx 0}}
+                      @icon="arrow-left"
+                      @title="discourse_revised_critique_image.project_editor.move_left"
+                      @ariaLabel="discourse_revised_critique_image.project_editor.move_left"
+                    />
+                    <DButton
+                      class="btn-flat project-revision-editor__card-move-right"
+                      @action={{fn this.moveRight idx}}
+                      @disabled={{eq idx this.lastIndex}}
+                      @icon="arrow-right"
+                      @title="discourse_revised_critique_image.project_editor.move_right"
+                      @ariaLabel="discourse_revised_critique_image.project_editor.move_right"
+                    />
+                  </div>
+                </div>
                 <label class="project-revision-editor__card-caption-label">
                   {{i18n
                     "discourse_revised_critique_image.project_editor.caption_label"
@@ -407,31 +446,18 @@ export default class ProjectRevisionEditor extends Component {
                 </label>
                 <div class="project-revision-editor__card-actions">
                   <DButton
-                    class="project-revision-editor__card-move-left"
-                    @action={{fn this.moveLeft idx}}
-                    @disabled={{eq idx 0}}
-                    @icon="arrow-left"
-                    @label="discourse_revised_critique_image.project_editor.move_left"
-                  />
-                  <DButton
-                    class="project-revision-editor__card-move-right"
-                    @action={{fn this.moveRight idx}}
-                    @disabled={{eq idx this.lastIndex}}
-                    @icon="arrow-right"
-                    @label="discourse_revised_critique_image.project_editor.move_right"
-                  />
-                  <DButton
-                    class="project-revision-editor__card-replace"
+                    class="btn-flat project-revision-editor__card-replace"
                     @action={{fn this.triggerReplace card.id}}
                     @icon="arrows-rotate"
                     @label="discourse_revised_critique_image.project_editor.replace"
                   />
                   <DButton
-                    class="project-revision-editor__card-remove btn-danger"
+                    class="btn-flat project-revision-editor__card-remove"
                     @action={{fn this.removeImage idx}}
                     @disabled={{this.atMinImages}}
                     @icon="trash-can"
                     @label="discourse_revised_critique_image.project_editor.remove"
+                    @ariaLabel="discourse_revised_critique_image.project_editor.remove"
                   />
                 </div>
               </div>

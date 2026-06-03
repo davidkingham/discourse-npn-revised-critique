@@ -47,6 +47,17 @@ export default class ProjectRevisionEditor extends Component {
   @tracked submitting = false;
   @tracked errorMessage = null;
 
+  // Native HTML5 drag-and-drop state. The Move up / Move down buttons
+  // are the accessible primary path; drag-and-drop is a pointer
+  // convenience layered on top, matching the pattern Discourse uses
+  // in sidebar/section-form-link.gjs.
+  @tracked dragSourceId = null;
+  @tracked dragOverId = null;
+  // "above" or "below" — which edge of the over-card the pointer is on,
+  // so we can render the drop indicator on the right side and decide
+  // insert position when the drop lands.
+  @tracked dragOverPosition = null;
+
   // Tracks where the next successful upload should go:
   //   { kind: "add" }                 → push a new card at the end
   //   { kind: "replace", id: <cardId> } → swap the named card's upload
@@ -200,7 +211,7 @@ export default class ProjectRevisionEditor extends Component {
   }
 
   @action
-  moveLeft(index) {
+  moveUp(index) {
     if (index <= 0) {
       return;
     }
@@ -211,7 +222,7 @@ export default class ProjectRevisionEditor extends Component {
   }
 
   @action
-  moveRight(index) {
+  moveDown(index) {
     if (index >= this.lastIndex) {
       return;
     }
@@ -219,6 +230,104 @@ export default class ProjectRevisionEditor extends Component {
     [next[index], next[index + 1]] = [next[index + 1], next[index]];
     this.images = next;
     this.clearError();
+  }
+
+  // ---- Drag-and-drop reordering ----------------------------------------
+  // Mirrors Discourse's sidebar/section-form-link.gjs pattern: native
+  // HTML5 D&D events with a tracked source + over state, and a per-card
+  // class hook for the drop indicator. The actual reorder happens on
+  // drop; dragOver only updates the "above/below" hint so the user can
+  // see where the card will land.
+
+  @action
+  onDragStart(cardId, event) {
+    event.dataTransfer.effectAllowed = "move";
+    // Some browsers refuse to fire drag events without setData being called.
+    event.dataTransfer.setData("text/plain", cardId);
+    this.dragSourceId = cardId;
+  }
+
+  @action
+  onDragOver(cardId, event) {
+    // preventDefault is required for `drop` to fire on this element.
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (!this.dragSourceId || cardId === this.dragSourceId) {
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const above = event.clientY < rect.top + rect.height / 2;
+    this.dragOverId = cardId;
+    this.dragOverPosition = above ? "above" : "below";
+  }
+
+  @action
+  onDragLeave(cardId) {
+    if (this.dragOverId === cardId) {
+      this.dragOverId = null;
+      this.dragOverPosition = null;
+    }
+  }
+
+  @action
+  onDrop(targetId, event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const sourceId = this.dragSourceId;
+    const position = this.dragOverPosition;
+    this.resetDragState();
+
+    if (!sourceId || sourceId === targetId) {
+      return;
+    }
+
+    const sourceIdx = this.images.findIndex((img) => img.id === sourceId);
+    if (sourceIdx === -1) {
+      return;
+    }
+
+    const next = [...this.images];
+    const [moved] = next.splice(sourceIdx, 1);
+    const targetIdxAfterRemoval = next.findIndex((img) => img.id === targetId);
+    if (targetIdxAfterRemoval === -1) {
+      return;
+    }
+    const insertAt =
+      position === "below" ? targetIdxAfterRemoval + 1 : targetIdxAfterRemoval;
+
+    next.splice(insertAt, 0, moved);
+    this.images = next;
+    this.clearError();
+  }
+
+  @action
+  onDragEnd() {
+    this.resetDragState();
+  }
+
+  resetDragState() {
+    this.dragSourceId = null;
+    this.dragOverId = null;
+    this.dragOverPosition = null;
+  }
+
+  // Returns the BEM modifier classes that should sit on a card given
+  // the current drag state. Inline class={{...}} composition would
+  // also work, but the @action method keeps the template readable
+  // when there are several states to combine.
+  @action
+  dragClassFor(cardId) {
+    const classes = [];
+    if (cardId === this.dragSourceId) {
+      classes.push("project-revision-editor__card--dragging");
+    }
+    if (cardId === this.dragOverId && this.dragOverPosition === "above") {
+      classes.push("project-revision-editor__card--drag-above");
+    }
+    if (cardId === this.dragOverId && this.dragOverPosition === "below") {
+      classes.push("project-revision-editor__card--drag-below");
+    }
+    return classes.join(" ");
   }
 
   @action
@@ -382,9 +491,16 @@ export default class ProjectRevisionEditor extends Component {
         <ol class="project-revision-editor__cards" aria-live="polite">
           {{#each this.images key="id" as |card idx|}}
             <li
-              class="project-revision-editor__card"
+              class="project-revision-editor__card
+                {{this.dragClassFor card.id}}"
               data-card-id={{card.id}}
               data-position={{idx}}
+              draggable="true"
+              {{on "dragstart" (fn this.onDragStart card.id)}}
+              {{on "dragover" (fn this.onDragOver card.id)}}
+              {{on "dragleave" (fn this.onDragLeave card.id)}}
+              {{on "drop" (fn this.onDrop card.id)}}
+              {{on "dragend" this.onDragEnd}}
             >
               <div class="project-revision-editor__card-thumb">
                 {{#if card.image_url}}
@@ -415,20 +531,20 @@ export default class ProjectRevisionEditor extends Component {
                     }}
                   >
                     <DButton
-                      class="btn-flat project-revision-editor__card-move-left"
-                      @action={{fn this.moveLeft idx}}
+                      class="btn-flat project-revision-editor__card-move-up"
+                      @action={{fn this.moveUp idx}}
                       @disabled={{eq idx 0}}
-                      @icon="arrow-left"
-                      @title="discourse_revised_critique_image.project_editor.move_left"
-                      @ariaLabel="discourse_revised_critique_image.project_editor.move_left"
+                      @icon="arrow-up"
+                      @title="discourse_revised_critique_image.project_editor.move_up"
+                      @ariaLabel="discourse_revised_critique_image.project_editor.move_up"
                     />
                     <DButton
-                      class="btn-flat project-revision-editor__card-move-right"
-                      @action={{fn this.moveRight idx}}
+                      class="btn-flat project-revision-editor__card-move-down"
+                      @action={{fn this.moveDown idx}}
                       @disabled={{eq idx this.lastIndex}}
-                      @icon="arrow-right"
-                      @title="discourse_revised_critique_image.project_editor.move_right"
-                      @ariaLabel="discourse_revised_critique_image.project_editor.move_right"
+                      @icon="arrow-down"
+                      @title="discourse_revised_critique_image.project_editor.move_down"
+                      @ariaLabel="discourse_revised_critique_image.project_editor.move_down"
                     />
                   </div>
                 </div>

@@ -162,16 +162,26 @@ describe "Project revision editor flow" do
       expect(page).to have_css(".project-revision-editor__card-caption-input", count: 2)
     end
 
-    it "reorders cards via Move Right" do
+    it "reorders cards via Move Down" do
       cards = page.all(".project-revision-editor__card", minimum: 2)
       first_id_before = cards[0]["data-card-id"]
       second_id_before = cards[1]["data-card-id"]
 
-      within(cards[0]) { find(".project-revision-editor__card-move-right").click }
+      within(cards[0]) { find(".project-revision-editor__card-move-down").click }
 
       cards_after = page.all(".project-revision-editor__card", minimum: 2)
       expect(cards_after[0]["data-card-id"]).to eq(second_id_before)
       expect(cards_after[1]["data-card-id"]).to eq(first_id_before)
+    end
+
+    it "exposes the draggable attribute and drag handler hooks on each card" do
+      # Drag-and-drop reordering is a pointer convenience; the
+      # Move up/down buttons remain the accessible primary path.
+      # We don't simulate full HTML5 drag events here (capybara's
+      # `drag_to` works for desktop drivers but is unreliable in
+      # headless project-revision contexts); we just assert the
+      # attributes that opt cards into native D&D are present.
+      expect(page).to have_css(".project-revision-editor__card[draggable='true']", minimum: 2)
     end
 
     it "removes a card with the Remove button" do

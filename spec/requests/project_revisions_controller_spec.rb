@@ -67,10 +67,15 @@ describe DiscourseRevisedCritiqueImage::ProjectRevisionsController do
     enable_current_plugin
     SiteSetting.revised_critique_category_id = category.id
     SiteSetting.revised_critique_max_project_revisions = 3
-    sign_in(owner)
     install_project_payload!
     install_first_post_with_markers!
     Fabricate(:post, topic: topic, user: other_user, raw: "Feedback reply.")
+  end
+
+  # Most tests run as the OP. The auth context deliberately doesn't
+  # sign anyone in so the anonymous-request check sees a clean session.
+  def sign_in_owner
+    sign_in(owner)
   end
 
   def post_revision(images:, mode: "add", note: nil)
@@ -82,6 +87,8 @@ describe DiscourseRevisedCritiqueImage::ProjectRevisionsController do
   end
 
   describe "add first project revision" do
+    before { sign_in_owner }
+
     it "appends Revision 1 with based_on=0 and 200" do
       new_a = fab_upload("rev1-a.jpeg")
       post_revision(
@@ -137,6 +144,8 @@ describe DiscourseRevisedCritiqueImage::ProjectRevisionsController do
   end
 
   describe "second revision" do
+    before { sign_in_owner }
+
     it "appends Revision 2 with based_on=1" do
       a = fab_upload("rev1-a.jpeg")
       post_revision(images: [image_param(id: "slot-a", upload_id: a.id)])
@@ -170,6 +179,8 @@ describe DiscourseRevisedCritiqueImage::ProjectRevisionsController do
   end
 
   describe "replace_latest" do
+    before { sign_in_owner }
+
     it "is rejected when no project revision exists" do
       a = fab_upload("draft.jpeg")
       post_revision(mode: "replace_latest", images: [image_param(id: "slot-a", upload_id: a.id)])
@@ -199,6 +210,8 @@ describe DiscourseRevisedCritiqueImage::ProjectRevisionsController do
   end
 
   describe "image validation" do
+    before { sign_in_owner }
+
     it "rejects empty image lists" do
       post_revision(images: [])
       expect(response.status).to eq(422)
@@ -274,6 +287,8 @@ describe DiscourseRevisedCritiqueImage::ProjectRevisionsController do
   end
 
   describe "eligibility / topic state" do
+    before { sign_in_owner }
+
     it "rejects when project markers are missing from the first post" do
       topic.first_post.update!(raw: "no markers, no project block")
       a = fab_upload("a.jpeg")
@@ -349,6 +364,8 @@ describe DiscourseRevisedCritiqueImage::ProjectRevisionsController do
   end
 
   describe "rate limiting" do
+    before { sign_in_owner }
+
     it "limits non-staff" do
       RateLimiter.enable
       freeze_time
@@ -369,7 +386,8 @@ describe DiscourseRevisedCritiqueImage::ProjectRevisionsController do
 
   describe "auth" do
     it "rejects anonymous requests" do
-      sign_out
+      # No sign_in here — the outer `before` deliberately doesn't sign
+      # anyone in, so this hits the controller with a clean session.
       a = fab_upload("a.jpeg")
       post_revision(images: [image_param(id: "slot-a", upload_id: a.id)])
       expect(response.status).to eq(403)

@@ -103,9 +103,20 @@ describe DiscourseRevisedCritiqueImage::ProjectRevisionHistory do
       expect(history.at_max?).to eq(true)
     end
 
-    it "caps max_images at the hard limit of 12" do
-      SiteSetting.revised_critique_max_project_images = 99
+    it "caps max_images at the hard limit of 12 even when an over-set value slips through" do
+      # The site setting itself caps at 12 via its YAML validator, so
+      # assigning 99 directly would raise. Stub the reader so this
+      # exercises only the in-memory defensive cap in
+      # ProjectRevisionHistory#max_images — defence-in-depth for a
+      # future setting-validator regression or a hand-edited DB value.
+      allow(SiteSetting).to receive(:revised_critique_max_project_images).and_return(99)
       expect(history.max_images).to eq(12)
+    end
+
+    it "is rejected by the site setting validator above the hard limit" do
+      expect { SiteSetting.revised_critique_max_project_images = 99 }.to raise_error(
+        Discourse::InvalidParameters,
+      )
     end
   end
 end

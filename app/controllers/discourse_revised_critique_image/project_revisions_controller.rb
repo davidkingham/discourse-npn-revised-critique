@@ -75,10 +75,23 @@ module DiscourseRevisedCritiqueImage
     # ActionController::Parameters-wrapped Array. Per-image fields are
     # validated by ProjectRevisionAdder, which is the source of truth
     # for the image-shape rules.
+    #
+    # URL-encoded `images: []` arrives server-side as `[""]` (one empty
+    # string) rather than the JSON-equivalent empty array, so we filter
+    # to genuine Hash / Parameters entries here. Anything else is
+    # dropped — the adder then sees an empty array and returns the
+    # cleaner :images_required error instead of :invalid_image_payload.
     def parse_images
       raw = params[:images]
       return [] if raw.blank?
-      Array(raw).map { |img| img.respond_to?(:to_unsafe_h) ? img.to_unsafe_h : img }
+      arr = raw.is_a?(Array) ? raw : [raw]
+      arr.filter_map do |img|
+        if img.respond_to?(:to_unsafe_h)
+          img.to_unsafe_h
+        elsif img.is_a?(Hash)
+          img
+        end
+      end
     end
 
     def apply_rate_limit!

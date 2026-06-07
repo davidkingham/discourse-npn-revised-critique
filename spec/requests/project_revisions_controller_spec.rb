@@ -218,6 +218,39 @@ describe DiscourseRevisedCritiqueImage::ProjectRevisionsController do
       expect(response.parsed_body["error_key"]).to eq("images_required")
     end
 
+    it "accepts jQuery's indexed-bracket encoding (Hash with numeric keys)" do
+      # Real browsers post via Discourse's `ajax` lib, which delegates to
+      # jQuery's `$.param` with the default (non-traditional) encoding.
+      # That produces `images[0][id]=…&images[1][id]=…`, which Rails
+      # parses as a Parameters hash with numeric-string keys — NOT an
+      # Array. Rack::Test (request specs) defaults to `images[][id]=…`
+      # without indices, so this case was missed by the other image
+      # validation specs until a system spec caught it.
+      a = fab_upload("a.jpeg")
+      b = fab_upload("b.jpeg")
+
+      post endpoint,
+           params: {
+             mode: "add",
+             images: {
+               "0" => {
+                 "id" => "slot-a",
+                 "upload_id" => a.id,
+                 "caption" => "",
+               },
+               "1" => {
+                 "id" => "slot-b",
+                 "upload_id" => b.id,
+                 "caption" => "",
+               },
+             },
+           }
+
+      expect(response.status).to eq(200)
+      history = DiscourseRevisedCritiqueImage::ProjectRevisionHistory.for(topic.reload)
+      expect(history.latest["images"].map { |i| i["upload_id"] }).to eq([a.id, b.id])
+    end
+
     it "rejects more than the configured maximum" do
       SiteSetting.revised_critique_max_project_images = 2
       a = fab_upload("a.jpeg")

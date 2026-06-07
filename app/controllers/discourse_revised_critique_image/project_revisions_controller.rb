@@ -71,21 +71,41 @@ module DiscourseRevisedCritiqueImage
       ProjectEligibility::MODES.include?(sym) ? sym : nil
     end
 
-    # Accept either an Array (JSON body parsed by Rails) or
-    # ActionController::Parameters-wrapped Array. Per-image fields are
-    # validated by ProjectRevisionAdder, which is the source of truth
-    # for the image-shape rules.
+    # Normalise the `images` payload from any of the encodings clients
+    # might send. The adder is the source of truth for image-shape rules.
     #
-    # URL-encoded `images: []` arrives server-side as `[""]` (one empty
-    # string) rather than the JSON-equivalent empty array, so we filter
-    # to genuine Hash / Parameters entries here. Anything else is
-    # dropped — the adder then sees an empty array and returns the
-    # cleaner :images_required error instead of :invalid_image_payload.
+    # Encoding cases we need to handle:
+    #
+    # 1. Rack::Test form-encoded `images[][a]=1&images[][b]=2`
+    #    (used by request specs): `params[:images]` is an Array of
+    #    Parameters/Hashes. The common path.
+    #
+    # 2. jQuery `$.param`'s default indexed `images[0][a]=1&images[1][b]=2`
+    #    (used by Discourse's `ajax` lib in the editor): Rails parses
+    #    `params[:images]` as a Parameters hash with numeric-string keys
+    #    `{"0" => {...}, "1" => {...}}` — NOT an Array. We have to dig
+    #    out the values explicitly or the adder sees one image whose
+    #    "id"/"upload_id" are missing.
+    #
+    # 3. URL-encoded `images: []` (an empty array in a request spec):
+    #    arrives as `[""]`, one empty string. Filtering non-Hash entries
+    #    leaves an empty list so the adder returns :images_required
+    #    instead of :invalid_image_payload.
     def parse_images
       raw = params[:images]
       return [] if raw.blank?
-      arr = raw.is_a?(Array) ? raw : [raw]
-      arr.filter_map do |img|
+
+      list =
+        case raw
+        when Array
+          raw
+        when Hash, ActionController::Parameters
+          raw.values
+        else
+          [raw]
+        end
+
+      list.filter_map do |img|
         if img.respond_to?(:to_unsafe_h)
           img.to_unsafe_h
         elsif img.is_a?(Hash)

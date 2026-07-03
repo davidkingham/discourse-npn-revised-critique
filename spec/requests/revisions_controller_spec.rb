@@ -68,6 +68,41 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
           expect(response.status).to eq(422)
           expect(response.parsed_body["error_key"]).to eq("note_too_long")
         end
+
+        it "rejects an upload the requester does not own (IDOR)" do
+          foreign = Fabricate(:upload, user: other_user, original_filename: "theirs.png")
+
+          expect {
+            post endpoint, params: { upload_id: foreign.id }
+          }.not_to change { DiscourseRevisedCritiqueImage::RevisionHistory.for(topic).count }
+
+          expect(response.status).to eq(422)
+          expect(response.parsed_body["error_key"]).to eq("invalid_upload")
+        end
+
+        it "accepts an upload the requester re-uploaded (UserUpload join row)" do
+          foreign = Fabricate(:upload, user: other_user, original_filename: "shared.png")
+          UserUpload.create!(upload_id: foreign.id, user_id: owner.id)
+
+          post endpoint, params: { upload_id: foreign.id }
+          expect(response.status).to eq(200)
+        end
+
+        it "neutralizes an end-marker injected via the note so the block survives re-revision" do
+          marker = DiscourseRevisedCritiqueImage::RevisionAdder::END_MARKER
+          post endpoint, params: { upload_id: upload.id, note: "sneaky #{marker} tail" }
+          expect(response.status).to eq(200)
+
+          # Second revision must still find exactly one intact block to strip.
+          r2 = fab_upload(filename: "r2.png", width: 640, height: 480)
+          post endpoint, params: { upload_id: r2.id, note: "second" }
+          expect(response.status).to eq(200)
+
+          raw = first_post.reload.raw
+          expect(raw.scan(marker).length).to eq(1)
+          expect(raw).to include("Revision 2 (latest)")
+          expect(raw).to include("Revision 1")
+        end
       end
 
       describe "add (subsequent revisions)" do

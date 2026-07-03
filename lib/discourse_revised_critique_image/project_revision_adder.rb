@@ -148,6 +148,12 @@ module DiscourseRevisedCritiqueImage
           unless ImageUploadValidation.valid_image_upload?(upload)
             return failure(:invalid_image_payload)
           end
+          # Reject uploads the user doesn't own — otherwise an enumerable
+          # integer upload_id becomes an oracle for surfacing any site upload
+          # into this public post.
+          unless UploadOwnership.accessible?(@user, upload)
+            return failure(:invalid_image_payload)
+          end
 
           {
             "id" => stable_id,

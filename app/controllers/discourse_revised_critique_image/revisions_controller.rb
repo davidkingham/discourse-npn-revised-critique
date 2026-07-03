@@ -33,6 +33,9 @@ module DiscourseRevisedCritiqueImage
       upload = Upload.find_by(id: params[:upload_id])
       return render_plugin_error(:missing_upload, 404) if upload.blank?
       return render_plugin_error(:invalid_upload, 422) unless valid_image_upload?(upload)
+      unless UploadOwnership.accessible?(current_user, upload)
+        return render_plugin_error(:invalid_upload, 422)
+      end
 
       note = params[:note].to_s.strip
       max = SiteSetting.revised_critique_note_max_length.to_i

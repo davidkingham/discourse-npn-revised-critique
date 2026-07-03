@@ -141,6 +141,35 @@ describe DiscourseRevisedCritiqueImage::ProjectRevisionsController do
       expect(raw_after.split(begin_marker, 2).first).to eq(prefix)
       expect(raw_after.split(end_marker, 2).last).to eq(suffix)
     end
+
+    it "rejects an image whose upload the requester does not own (IDOR)" do
+      foreign = Fabricate(:upload, user: other_user, original_filename: "theirs.jpeg")
+
+      expect {
+        post_revision(images: [image_param(id: "slot-a", upload_id: foreign.id)])
+      }.not_to change { DiscourseRevisedCritiqueImage::ProjectRevisionHistory.for(topic.reload).count }
+
+      expect(response.status).to eq(422)
+      expect(response.parsed_body["error_key"]).to eq("invalid_image_payload")
+    end
+
+    it "neutralizes an end-marker injected via a caption so the block stays intact" do
+      new_a = fab_upload("rev1-a.jpeg")
+      post_revision(
+        images: [
+          image_param(id: "slot-a", upload_id: new_a.id, caption: "hi #{end_marker} bye"),
+        ],
+      )
+      expect(response.status).to eq(200)
+
+      raw = topic.reload.first_post.raw
+      expect(raw.scan(end_marker).length).to eq(1)
+      # A second revision must still find the intact block to splice.
+      new_a2 = fab_upload("rev2-a.jpeg")
+      post_revision(images: [image_param(id: "slot-a", upload_id: new_a2.id)])
+      expect(response.status).to eq(200)
+      expect(topic.reload.first_post.raw.scan(end_marker).length).to eq(1)
+    end
   end
 
   describe "second revision" do

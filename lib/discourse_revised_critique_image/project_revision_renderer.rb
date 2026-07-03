@@ -92,6 +92,13 @@ module DiscourseRevisedCritiqueImage
     # (npn-project-overview-*) so all rendered versions share styling.
     # Falls back to omitting cells whose Upload was deleted rather than
     # emitting a broken <img> tag.
+    #
+    # COUPLING: the sanitizer allowlist that lets these class attributes
+    # survive cooking lives in discourse-npn-submissions' markdown-it feature
+    # (and the SCSS in its stylesheet). Plugin markdown features/assets only
+    # load for ENABLED plugins, so if submissions is disabled while this plugin
+    # stays on, a re-cook strips the classes and the grid collapses to stacked
+    # full-size images. These two plugins are effectively enable-coupled.
     def overview_grid(images)
       cells =
         images.each_with_index.flat_map do |img, index|
@@ -131,7 +138,9 @@ module DiscourseRevisedCritiqueImage
           next [] if short_url.blank?
 
           parts = ["**#{label}**", "![#{label}](#{short_url})"]
-          parts << "*#{img["caption"]}*" if img["caption"].to_s.strip.present?
+          if img["caption"].to_s.strip.present?
+            parts << "*#{MarkerSafety.neutralize(img["caption"].to_s.strip)}*"
+          end
           parts
         end
 

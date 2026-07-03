@@ -42,6 +42,8 @@ require_relative "lib/discourse_revised_critique_image/engine"
 
 after_initialize do
   require_relative "lib/discourse_revised_critique_image/image_upload_validation"
+  require_relative "lib/discourse_revised_critique_image/upload_ownership"
+  require_relative "lib/discourse_revised_critique_image/marker_safety"
   require_relative "lib/discourse_revised_critique_image/submissions_compat"
   require_relative "lib/discourse_revised_critique_image/project_submission_reader"
   require_relative "lib/discourse_revised_critique_image/project_revision_history"

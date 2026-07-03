@@ -134,7 +134,35 @@ module DiscourseRevisedCritiqueImage
     end
 
     def image_markdown(entry)
-      "![Revised version|#{dimensions_for(entry)}](#{entry["upload_short_url"]})"
+      "![#{revised_image_alt(entry)}|#{dimensions_for(entry)}](#{entry["upload_short_url"]})"
+    end
+
+    # Lightbox caption for a revision image: "Revision N - filename.jpg".
+    # Discourse's core lightbox falls back to the image alt when no img title
+    # is set, so this alt is what the caption shows. Only the Markdown alt
+    # changes — the upload is never renamed.
+    def revised_image_alt(entry)
+      number = entry["revision_number"].to_i
+      filename = sanitize_alt(filename_for(entry))
+      return "Revision #{number}" if filename.blank?
+      "Revision #{number} - #{filename}"
+    end
+
+    # Prefer the filename captured on the history entry. For entries written
+    # before `original_filename` was stored, resolve it from the live Upload;
+    # if that's gone too, the caller falls back to a bare "Revision N".
+    def filename_for(entry)
+      stored = entry["original_filename"].to_s.strip
+      return stored if stored.present?
+      Upload.find_by(id: entry["upload_id"])&.original_filename
+    end
+
+    # Strip characters that would break Markdown image alt text or Discourse's
+    # `![alt|WxH]` dimension syntax (pipes, brackets, parens, newlines) so an
+    # unusual upload filename can't corrupt the image tag. Collapses the
+    # resulting whitespace runs.
+    def sanitize_alt(value)
+      value.to_s.gsub(/[|\[\]()]/, " ").gsub(/\s+/, " ").strip
     end
 
     def dimensions_for(entry)
@@ -145,7 +173,7 @@ module DiscourseRevisedCritiqueImage
     end
 
     def escape_note(note)
-      note.gsub(/\s*\r?\n+\s*/, " ").strip
+      MarkerSafety.neutralize(note.gsub(/\s*\r?\n+\s*/, " ").strip)
     end
 
     def revised_heading

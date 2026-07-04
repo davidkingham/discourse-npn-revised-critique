@@ -147,7 +147,9 @@ describe DiscourseRevisedCritiqueImage::ProjectRevisionsController do
 
       expect {
         post_revision(images: [image_param(id: "slot-a", upload_id: foreign.id)])
-      }.not_to change { DiscourseRevisedCritiqueImage::ProjectRevisionHistory.for(topic.reload).count }
+      }.not_to change {
+        DiscourseRevisedCritiqueImage::ProjectRevisionHistory.for(topic.reload).count
+      }
 
       expect(response.status).to eq(422)
       expect(response.parsed_body["error_key"]).to eq("invalid_image_payload")
@@ -156,9 +158,7 @@ describe DiscourseRevisedCritiqueImage::ProjectRevisionsController do
     it "neutralizes an end-marker injected via a caption so the block stays intact" do
       new_a = fab_upload("rev1-a.jpeg")
       post_revision(
-        images: [
-          image_param(id: "slot-a", upload_id: new_a.id, caption: "hi #{end_marker} bye"),
-        ],
+        images: [image_param(id: "slot-a", upload_id: new_a.id, caption: "hi #{end_marker} bye")],
       )
       expect(response.status).to eq(200)
 

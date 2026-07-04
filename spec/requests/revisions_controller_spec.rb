@@ -72,9 +72,9 @@ describe DiscourseRevisedCritiqueImage::RevisionsController do
         it "rejects an upload the requester does not own (IDOR)" do
           foreign = Fabricate(:upload, user: other_user, original_filename: "theirs.png")
 
-          expect {
-            post endpoint, params: { upload_id: foreign.id }
-          }.not_to change { DiscourseRevisedCritiqueImage::RevisionHistory.for(topic).count }
+          expect { post endpoint, params: { upload_id: foreign.id } }.not_to change {
+            DiscourseRevisedCritiqueImage::RevisionHistory.for(topic).count
+          }
 
           expect(response.status).to eq(422)
           expect(response.parsed_body["error_key"]).to eq("invalid_upload")

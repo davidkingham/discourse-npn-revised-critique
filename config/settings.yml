@@ -2,9 +2,9 @@ plugins:
   revised_critique_enabled:
     default: true
     client: true
-  revised_critique_category_id:
-    default: 0
-    type: integer
+  revised_critique_category_ids:
+    default: ""
+    type: category_list
     client: true
   revised_critique_button_label:
     default: "Share Revised Version"

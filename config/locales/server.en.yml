@@ -1,7 +1,7 @@
 en:
   site_settings:
     revised_critique_enabled: "Enable the revised critique image plugin."
-    revised_critique_category_id: "Category in which topic owners can add a revised image."
+    revised_critique_category_ids: "Categories in which topic owners can add a revised image. Topics must belong to one of these categories."
     revised_critique_button_label: "Label for the topic-level button."
     revised_critique_title_marker: "Marker appended to the topic title after a revision is added. Set blank to disable."
     revised_critique_note_max_length: "Maximum length of the optional \"what changed\" note."

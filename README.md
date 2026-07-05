@@ -94,7 +94,7 @@ Plugins → Discourse Revised Critique Image**.
 | Setting | Default | Description |
 | --- | --- | --- |
 | `revised_critique_enabled` | `true` | Master switch. |
-| `revised_critique_category_id` | `0` | The category topics must belong to. **Required** — set this to the ID of your critique category, otherwise the plugin is effectively off. |
+| `revised_critique_category_ids` | (empty) | The categories topics must belong to. **Required** — pick at least one critique category, otherwise the plugin is effectively off. |
 | `revised_critique_button_label` | `"Share Revised Version"` | The text on the topic-level button. |
 | `revised_critique_title_marker` | `"(+revised)"` | The string appended to the topic title after a successful revision. Set blank to disable. |
 | `revised_critique_heading` | `"Revised Version"` | The heading inserted at the top of the revision block. |

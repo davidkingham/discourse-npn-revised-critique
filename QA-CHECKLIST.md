@@ -10,7 +10,7 @@ The detailed dependency map and rollback steps live in
 this document is just the run-list.
 
 Setup: a staging forum with this plugin and `discourse-npn-submissions`
-both installed. Configure a category in `revised_critique_category_id`.
+both installed. Configure a category in `revised_critique_category_ids`.
 Have two TL1+ accounts ready: `op_user` and `feedback_user`. An admin
 account is useful for the staff-only paths.
 
@@ -360,8 +360,8 @@ first post.
 ### Plugin settings
 
 - [ ] `revised_critique_enabled` — confirm `true` in production.
-- [ ] `revised_critique_category_id` — set to the **production**
-      category id. Different from staging.
+- [ ] `revised_critique_category_ids` — set to the **production**
+      categories. Different from staging.
 - [ ] `revised_critique_max_revisions` — confirm value (default 3).
 - [ ] `revised_critique_max_project_revisions` — confirm value
       (default 3, min 1).

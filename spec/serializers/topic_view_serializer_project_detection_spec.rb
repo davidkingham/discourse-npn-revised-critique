@@ -135,7 +135,7 @@ describe TopicViewSerializer do
     let!(:reply) { Fabricate(:post, topic: topic, user: Fabricate(:user), raw: "Feedback") }
 
     before do
-      SiteSetting.revised_critique_category_id = category.id
+      SiteSetting.revised_critique_category_ids = category.id.to_s
       install_project_payload!(images: [well_formed_image(position: 1)])
     end
 
@@ -168,7 +168,7 @@ describe TopicViewSerializer do
   describe "single-image eligibility on non-project topics is unchanged" do
     let!(:reply) { Fabricate(:post, topic: topic, user: Fabricate(:user), raw: "Feedback") }
 
-    before { SiteSetting.revised_critique_category_id = category.id }
+    before { SiteSetting.revised_critique_category_ids = category.id.to_s }
 
     it "still reports can_add_revised_critique_image = true" do
       json = serialize(owner)
@@ -183,7 +183,7 @@ describe TopicViewSerializer do
     let!(:reply) { Fabricate(:post, topic: topic, user: Fabricate(:user), raw: "Feedback") }
 
     before do
-      SiteSetting.revised_critique_category_id = category.id
+      SiteSetting.revised_critique_category_ids = category.id.to_s
       install_project_payload!(images: [well_formed_image(position: 1)])
     end
 

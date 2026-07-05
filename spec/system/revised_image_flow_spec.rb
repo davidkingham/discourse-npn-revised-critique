@@ -11,7 +11,7 @@ describe "Revised critique image flow" do
 
   before do
     enable_current_plugin
-    SiteSetting.revised_critique_category_id = category.id
+    SiteSetting.revised_critique_category_ids = category.id.to_s
     SiteSetting.revised_critique_max_revisions = 2
   end
 

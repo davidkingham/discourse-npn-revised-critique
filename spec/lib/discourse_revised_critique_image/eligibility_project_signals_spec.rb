@@ -22,7 +22,7 @@ describe DiscourseRevisedCritiqueImage::Eligibility do
 
   before do
     SiteSetting.revised_critique_enabled = true
-    SiteSetting.revised_critique_category_id = category.id
+    SiteSetting.revised_critique_category_ids = category.id.to_s
     SiteSetting.tagging_enabled = true
   end
 

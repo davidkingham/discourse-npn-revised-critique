@@ -95,8 +95,8 @@ module DiscourseRevisedCritiqueImage
     end
 
     def in_configured_category?
-      category_id = SiteSetting.revised_critique_category_id.to_i
-      category_id > 0 && @topic.category_id == category_id
+      category_ids = SiteSetting.revised_critique_category_ids_map
+      category_ids.present? && category_ids.include?(@topic.category_id)
     end
 
     def topic_editable?

@@ -250,7 +250,7 @@ nothing in this plugin changed.
 
 Set up: a staging forum with this plugin installed, sibling NPN
 plugins disabled (so test coverage isolates this plugin's surface),
-and a category configured in `revised_critique_category_id`. Have
+and a category configured in `revised_critique_category_ids`. Have
 two test accounts ready: `op_user` and `feedback_user`. Both at
 TL1+.
 

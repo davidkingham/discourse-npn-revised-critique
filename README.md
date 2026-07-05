@@ -38,7 +38,7 @@ Successful revisions insert a markdown block at the top of the first post:
 <!-- revised-critique-image:begin -->
 ## Revised Version
 
-![Revised version|800x600](upload://abc123.jpg)
+![Revision 1 - sunset.jpg|800x600](upload://abc123.jpg)
 
 **What changed:** Pulled down the highlights and warmed the white balance.
 

@@ -5,16 +5,22 @@ module DiscourseRevisedCritiqueImage
   #
   # Entry shape:
   #   {
-  #     "revision_number" => 1,         # 1-indexed, strictly increasing per add
-  #     "upload_id"       => 123,
-  #     "upload_short_url"=> "upload://abc.png",
-  #     "width"           => 800,       # may be nil
-  #     "height"          => 600,       # may be nil
-  #     "note"            => "...",     # may be nil
-  #     "user_id"         => 45,        # who created or last replaced
-  #     "created_at"      => iso8601,   # original add time
-  #     "updated_at"      => iso8601,   # replacement time (== created_at if never replaced)
+  #     "revision_number"   => 1,         # 1-indexed, strictly increasing per add
+  #     "upload_id"         => 123,
+  #     "upload_short_url"  => "upload://abc.png",
+  #     "original_filename" => "sunset.jpg", # may be absent on pre-v… entries
+  #     "width"             => 800,       # may be nil
+  #     "height"            => 600,       # may be nil
+  #     "note"              => "...",     # may be nil
+  #     "user_id"           => 45,        # who created or last replaced
+  #     "created_at"        => iso8601,   # original add time
+  #     "updated_at"        => iso8601,   # replacement time (== created_at if never replaced)
   #   }
+  #
+  # `original_filename` is additive: it is captured at write time so the
+  # rendered image alt can read "Revision N - filename.jpg". Entries written
+  # before it existed simply omit the key; the renderer falls back to a live
+  # Upload lookup and then to a bare "Revision N".
   class RevisionHistory
     def self.for(topic)
       new(topic)
@@ -68,6 +74,7 @@ module DiscourseRevisedCritiqueImage
       latest_entry = entries.last.dup
       latest_entry["upload_id"] = upload.id
       latest_entry["upload_short_url"] = upload.short_url
+      latest_entry["original_filename"] = upload.original_filename
       latest_entry["width"] = (
         if upload.width.to_i.positive?
           upload.width.to_i
@@ -103,6 +110,7 @@ module DiscourseRevisedCritiqueImage
         "revision_number" => revision_number,
         "upload_id" => upload.id,
         "upload_short_url" => upload.short_url,
+        "original_filename" => upload.original_filename,
         "width" => upload.width.to_i.positive? ? upload.width.to_i : nil,
         "height" => upload.height.to_i.positive? ? upload.height.to_i : nil,
         "note" => note.presence,
@@ -161,6 +169,7 @@ module DiscourseRevisedCritiqueImage
           "revision_number" => 1,
           "upload_id" => legacy_upload.id,
           "upload_short_url" => legacy_upload.short_url,
+          "original_filename" => legacy_upload.original_filename,
           "width" => legacy_upload.width.to_i.positive? ? legacy_upload.width.to_i : nil,
           "height" =>
             (

@@ -21,7 +21,7 @@ plugin and **must not** be written by this plugin.
 
 | Key | Type | Owner | Purpose |
 |---|---|---|---|
-| `revised_image_history` | `:json` | this plugin | Source-of-truth single-image revision array; each entry is `{revision_number, upload_id, upload_short_url, width, height, note, user_id, created_at, updated_at}`. |
+| `revised_image_history` | `:json` | this plugin | Source-of-truth single-image revision array; each entry is `{revision_number, upload_id, upload_short_url, original_filename, width, height, note, user_id, created_at, updated_at}` (`original_filename` is absent on entries written before it was recorded). |
 | `revised_image_upload_id` | `:integer` | this plugin | Denormalised pointer to the latest single-image revision's upload. |
 | `revised_image_added_at` | `:string` | this plugin | Denormalised latest-revision timestamp (ISO 8601). |
 | `revised_image_added_by_user_id` | `:integer` | this plugin | Denormalised latest-revision user id. |
@@ -69,7 +69,8 @@ Storage rules enforced in `ProjectRevisionHistory#normalize_images`:
 
 ### `revised_image_history` entry shape
 
-See `lib/discourse_revised_critique_image/revision_history.rb:6-17`.
+See the entry-shape comment at the top of
+`lib/discourse_revised_critique_image/revision_history.rb`.
 Same row docs the legacy fields. The denormalised scalars
 (`revised_image_upload_id`, etc.) always point at the **last** entry
 in this array.
@@ -92,7 +93,8 @@ Another Revision" / "Replace Latest Revision" buttons.
 | `mode` | no | `"add"` (default) or `"replace_latest"`. |
 
 Auth: `ensure_logged_in`. Eligibility: `Eligibility.check` (owner,
-category, not closed/archived, first post editable, optional reply
+topic in a configured category, not closed/archived, first post
+editable, optional reply
 gate, max-revisions for `add`, project-topic gate refuses
 `project_critique` topics). Rate limit: 6/hour per non-staff user,
 key `revised-critique-image`.
@@ -113,7 +115,8 @@ Project flow. Used by the Phase 4 project editor.
 | `images` | yes | Array of `{ id, upload_id, caption }`. `id` may be a stable slot id (from the original or a prior revision) or any new value the editor generated. The server normalises positions and re-derives `short_url` / `alt` from the upload. |
 
 Auth: `ensure_logged_in`. Eligibility: `ProjectEligibility.check`
-(owner, category, **must** be a project topic, project payload valid,
+(owner, topic in a configured category, **must** be a project topic,
+project payload valid,
 markers present, max-project-revisions for `add`, history non-empty
 for `replace_latest`). Rate limit: 6/hour per non-staff user, key
 `revised-critique-project-revision`.
@@ -413,6 +416,16 @@ Uppy needs it attached to the DOM:
 8. **The project editor doesn't have undo.** Removing a card is
    immediate; closing the modal without saving discards changes. There
    is no autosave / draft state.
+
+---
+
+## Migrations
+
+Plugin migrations live in `db/migrate/`.
+`20260705120000_rename_revised_critique_category_setting.rb` carries a
+previously configured `revised_critique_category_id` (single integer)
+over to `revised_critique_category_ids` (`category_list`). A stored `0`
+meant "unset" for the old setting and is dropped rather than migrated.
 
 ---
 

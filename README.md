@@ -14,7 +14,7 @@ the "before / after" of feedback is part of the value of the discussion.
 ## Features
 
 - **Topic-level banner** above the posts that only appears when the current
-  user is the OP, the topic is in the configured critique category, has at
+  user is the OP, the topic is in one of the configured critique categories, has at
   least one reply from another user, and the OP can still edit their first
   post.
 - **Upload modal** built on Discourse's standard `<DModal>` + `UppyImageUploader`
@@ -55,6 +55,10 @@ Successful revisions insert a markdown block at the top of the first post:
 The HTML-comment markers around the revision block let the plugin cleanly
 replace an existing revision (when replacement is enabled) without touching
 the original content.
+
+The image alt is `Revision N - <original filename>`. For history entries
+written before the filename was recorded, the renderer falls back to a live
+upload lookup, then to a bare `Revision N`.
 
 The plugin also stores four topic custom fields:
 

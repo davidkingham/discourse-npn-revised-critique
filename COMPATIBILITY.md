@@ -47,7 +47,7 @@ serialised for the client via `TopicViewSerializer` (the `can_*`
 booleans drive whether the banner appears, and which buttons it shows).
 
 Gates: plugin enabled, user is topic owner, user not suspended, topic
-is in the configured category, topic is not closed / archived /
+is in one of the configured categories, topic is not closed / archived /
 deleted, first post is editable per `Guardian#can_edit?`, optionally
 at least one reply from another user exists, and (for `add`) the
 revision count is below `revised_critique_max_revisions`.
@@ -260,7 +260,7 @@ before you get halfway.
 
 ### Banner visibility
 
-- [ ] As `op_user`, create a topic with an image in the configured
+- [ ] As `op_user`, create a topic with an image in a configured
       category. **Without** any reply from another user yet, the
       banner does **not** appear (gated by
       `revised_critique_require_reply_from_other_user`).
@@ -270,8 +270,10 @@ before you get halfway.
 - [ ] As an anonymous viewer, the banner does **not** appear (no
       `can_*` booleans for guests).
 - [ ] As `feedback_user` (non-OP), the banner does **not** appear.
-- [ ] Move the topic to a different category. Banner disappears.
-      Move it back; banner returns.
+- [ ] Move the topic to a category outside the configured list.
+      Banner disappears. Move it back; banner returns. If more than
+      one category is configured, moving between two configured
+      categories keeps the banner visible.
 - [ ] Close the topic. Banner disappears. Re-open; banner returns.
 - [ ] Archive the topic. Banner disappears. Un-archive; banner
       returns.

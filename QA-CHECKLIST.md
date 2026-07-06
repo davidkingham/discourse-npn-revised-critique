@@ -20,7 +20,7 @@ account is useful for the staff-only paths.
 
 ### First revision
 
-- [ ] As `op_user`, create a topic with one image in the configured
+- [ ] As `op_user`, create a topic with one image in a configured
       category. The banner does **not** appear (waiting on a reply).
       **Verify**: no `.revised-image-banner` element on the page.
 - [ ] As `feedback_user`, post any reply. Reload as `op_user`. Banner
@@ -103,7 +103,7 @@ tools and check the response.
 
 - [ ] **Anonymous**: 403.
 - [ ] **Non-OP**: 422 with `error_key: "not_owner"`.
-- [ ] **Topic in a different category**: 422,
+- [ ] **Topic in a category outside the configured list**: 422,
       `error_key: "not_in_category"`.
 - [ ] **Topic is closed/archived/deleted**: 403,
       `error_key: "cannot_edit_post"`.

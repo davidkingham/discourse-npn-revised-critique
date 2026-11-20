@@ -122,6 +122,11 @@ export default class ProjectRevisionEditor extends Component {
     }));
   }
 
+  // The project's alternates (numbered "A1"…): a book's cover may be one.
+  get hangAlternates() {
+    return this.topic?.npn_project_images?.alternates ?? [];
+  }
+
   get showHang() {
     return (
       !!this.HangEditor &&
@@ -146,6 +151,7 @@ export default class ProjectRevisionEditor extends Component {
         prints: this.hangPrints,
         hang: this.hang,
         intent: this.projectIntent,
+        alternates: this.hangAlternates,
       });
       return upload?.id ?? null;
     } catch (e) {
@@ -688,6 +694,8 @@ export default class ProjectRevisionEditor extends Component {
               @prints={{this.hangPrints}}
               @hang={{this.hang}}
               @intent={{this.projectIntent}}
+              @alternates={{this.hangAlternates}}
+              @allowOrders={{true}}
               @onChange={{this.setHang}}
             />
           </section>

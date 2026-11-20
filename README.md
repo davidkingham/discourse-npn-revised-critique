@@ -77,7 +77,9 @@ editor shows a "Hang this version" section: the same wall as the project form
 now. On save the wall is drawn as one picture and stored with the revision
 (`hang`, `hang_image_upload_id`); the re-rendered project block shows each
 version's picture in place of its overview grid, and the exhibition wall
-follows the latest revision's hang. Everything degrades to the plain overview
+follows the latest revision's hang. The section also offers proposed orders
+(tabs on the post's wall) and, for a book, a cover from the project's
+alternates. Everything degrades to the plain overview
 when the submissions plugin (or its hang support) isn't available; see
 `SubmissionsCompat`.
 

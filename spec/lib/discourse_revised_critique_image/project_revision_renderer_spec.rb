@@ -40,6 +40,49 @@ describe DiscourseRevisedCritiqueImage::ProjectRevisionRenderer do
     end
   end
 
+  describe "with wall pictures" do
+    let(:original_wall) { upload!("exhibition.jpeg") }
+    let(:revision_wall) { upload!("exhibition-2.jpeg") }
+    let(:revisions) do
+      [
+        {
+          "revision_number" => 1,
+          "based_on" => 0,
+          "images" => [image(id: "slot-1", upload: upload_b)],
+          "hang_image_upload_id" => revision_wall.id,
+        },
+      ]
+    end
+
+    it "shows each version's wall picture in place of its overview grid" do
+      unless defined?(::DiscourseNpnSubmissions::ProjectPostBuilder)
+        skip "needs discourse-npn-submissions"
+      end
+
+      output =
+        described_class.render(
+          original_data: original_data,
+          revisions: revisions,
+          original_hang_image_upload_id: original_wall.id,
+          intent: "gallery",
+        )
+
+      latest, original = output.split("[details=", 2)
+      expect(latest).to include("### The Exhibition", '<div class="npn-project-hang">')
+      expect(latest).to include(revision_wall.short_url)
+      expect(latest).not_to include("npn-project-overview-grid")
+      expect(original).to include(original_wall.short_url)
+      expect(output).to include("### Image Sequence")
+    end
+
+    it "keeps the overview grid for a version without a picture" do
+      revisions.first.delete("hang_image_upload_id")
+      output = described_class.render(original_data: original_data, revisions: revisions)
+      expect(output).to include("npn-project-overview-grid")
+      expect(output).not_to include("npn-project-hang")
+    end
+  end
+
   describe "with one revision" do
     let(:revisions) do
       [

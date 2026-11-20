@@ -45,6 +45,8 @@ module DiscourseRevisedCritiqueImage
           images: images,
           mode: mode,
           note: note,
+          hang: parse_hang,
+          hang_image_upload_id: params[:hang_image_upload_id],
         )
 
       unless result.success?
@@ -64,6 +66,14 @@ module DiscourseRevisedCritiqueImage
     end
 
     private
+
+    # The hang arrives as a small nested hash; it is normalized against an
+    # allowlist before anything is stored (see SubmissionsCompat.normalize_hang).
+    def parse_hang
+      raw = params[:hang]
+      raw = raw.to_unsafe_h if raw.respond_to?(:to_unsafe_h)
+      raw.is_a?(Hash) ? raw : nil
+    end
 
     def parse_mode
       raw = params[:mode].presence || "add"

@@ -19,6 +19,8 @@ en:
         title_add_another: "Add another project revision"
         title_replace_latest: "Replace latest project revision"
         description: "Add, remove, reorder, replace, or caption the images for this project revision. The original submission is never modified."
+        hang_heading: "Hang this version"
+        hang_help: "How this version hangs: layout, wall, mats, frames and print sizes. Readers see it at the top of your post."
         note_label: "What changed in this project revision?"
         note_placeholder: "Optional. Describe what you changed in this round."
         sequence_heading: "Images in this revision"

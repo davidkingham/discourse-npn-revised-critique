@@ -69,6 +69,18 @@ The plugin also stores four topic custom fields:
 | `revised_image_added_by_user_id` | integer | Who added it (always the OP) |
 | `revised_image_note` | string | Optional "what changed" note |
 
+## Project revisions and the hang
+
+When discourse-npn-submissions provides its hang editor, the project revision
+editor shows a "Hang this version" section: the same wall as the project form
+(layout, wall, mats, frames, print sizes), starting from the hang readers see
+now. On save the wall is drawn as one picture and stored with the revision
+(`hang`, `hang_image_upload_id`); the re-rendered project block shows each
+version's picture in place of its overview grid, and the exhibition wall
+follows the latest revision's hang. Everything degrades to the plain overview
+when the submissions plugin (or its hang support) isn't available; see
+`SubmissionsCompat`.
+
 ## Installation
 
 Add the repo to your `app.yml` under the `hooks → after_code → cmd` block:

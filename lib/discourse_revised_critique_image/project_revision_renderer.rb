@@ -10,6 +10,10 @@ module DiscourseRevisedCritiqueImage
   #      one revision exists (otherwise the original IS the latest and is
   #      rendered expanded at the top instead).
   #
+  # A version that has a drawn wall picture (the photographer's hang, see
+  # discourse-npn-submissions) shows that picture in place of the overview
+  # grid; versions without one keep the grid.
+  #
   # Each rendered version emits a "Project Overview" raw HTML grid (using
   # the same CSS classes the submissions plugin uses, so the existing
   # styling and allowlists carry over) and an "Image Sequence" markdown
@@ -21,13 +25,20 @@ module DiscourseRevisedCritiqueImage
   class ProjectRevisionRenderer
     ORIGINAL_SECTION_LABEL = "Original Submission"
 
-    def self.render(original_data:, revisions:)
-      new(original_data: original_data, revisions: revisions).render
+    def self.render(original_data:, revisions:, original_hang_image_upload_id: nil, intent: nil)
+      new(
+        original_data: original_data,
+        revisions: revisions,
+        original_hang_image_upload_id: original_hang_image_upload_id,
+        intent: intent,
+      ).render
     end
 
-    def initialize(original_data:, revisions:)
+    def initialize(original_data:, revisions:, original_hang_image_upload_id: nil, intent: nil)
       @original_images = Array(original_data && original_data["images"])
       @revisions = Array(revisions)
+      @original_hang_image_upload_id = original_hang_image_upload_id.to_i
+      @intent = intent
       @uploads_by_id = preload_uploads
     end
 
@@ -39,22 +50,32 @@ module DiscourseRevisedCritiqueImage
         sections << version_section(
           images: Array(latest["images"]),
           heading: nil, # expanded; no [details] wrapper
+          hang_image_upload_id: latest["hang_image_upload_id"],
         )
         prior_revisions.reverse_each do |rev|
           sections << version_section(
             images: Array(rev["images"]),
             heading: label_for_revision(rev),
+            hang_image_upload_id: rev["hang_image_upload_id"],
           )
         end
         if @original_images.any?
-          sections << version_section(images: @original_images, heading: ORIGINAL_SECTION_LABEL)
+          sections << version_section(
+            images: @original_images,
+            heading: ORIGINAL_SECTION_LABEL,
+            hang_image_upload_id: @original_hang_image_upload_id,
+          )
         end
       else
         # No revisions yet: render the original expanded. This branch
         # exists for safety — adders always write the first revision
         # before calling render — but means the renderer is also usable
         # for a "preview the original" smoke test.
-        sections << version_section(images: @original_images, heading: nil)
+        sections << version_section(
+          images: @original_images,
+          heading: nil,
+          hang_image_upload_id: @original_hang_image_upload_id,
+        )
       end
 
       sections.compact.join("\n\n")
@@ -73,10 +94,11 @@ module DiscourseRevisedCritiqueImage
       "Revision #{rev["revision_number"].to_i}"
     end
 
-    def version_section(images:, heading:)
+    def version_section(images:, heading:, hang_image_upload_id: nil)
       return nil if Array(images).empty?
 
-      body = [overview_grid(images), image_sequence(images)].compact.join("\n\n")
+      overview = hang_picture(hang_image_upload_id, images) || overview_grid(images)
+      body = [overview, image_sequence(images)].compact.join("\n\n")
       if heading
         # Discourse's [details=…] supports HTML attributes only when quoted.
         # The label is content we control, so no user input reaches here,
@@ -86,6 +108,14 @@ module DiscourseRevisedCritiqueImage
       else
         body
       end
+    end
+
+    # The wall picture for a version, in the submissions plugin's markup, or
+    # nil (no picture, deleted upload, or that plugin can't render it).
+    def hang_picture(upload_id, images)
+      upload = @uploads_by_id[upload_id.to_i]
+      return nil if upload.nil?
+      SubmissionsCompat.hang_markup(upload: upload, count: Array(images).size, intent: @intent)
     end
 
     # Raw HTML matching the submissions plugin's existing CSS allowlist
@@ -162,7 +192,11 @@ module DiscourseRevisedCritiqueImage
 
     def collect_upload_ids
       ids = @original_images.map { |i| i["upload_id"] }
-      @revisions.each { |rev| ids.concat(Array(rev["images"]).map { |i| i["upload_id"] }) }
+      @revisions.each do |rev|
+        ids.concat(Array(rev["images"]).map { |i| i["upload_id"] })
+        ids << rev["hang_image_upload_id"]
+      end
+      ids << @original_hang_image_upload_id
       ids.compact.map(&:to_i).uniq
     end
 

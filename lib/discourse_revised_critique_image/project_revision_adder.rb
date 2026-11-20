@@ -18,16 +18,34 @@ module DiscourseRevisedCritiqueImage
         end
       end
 
-    def self.call(topic:, user:, images:, mode: :add, note: nil)
-      new(topic: topic, user: user, images: images, mode: mode, note: note).call
+    def self.call(
+      topic:,
+      user:,
+      images:,
+      mode: :add,
+      note: nil,
+      hang: nil,
+      hang_image_upload_id: nil
+    )
+      new(
+        topic: topic,
+        user: user,
+        images: images,
+        mode: mode,
+        note: note,
+        hang: hang,
+        hang_image_upload_id: hang_image_upload_id,
+      ).call
     end
 
-    def initialize(topic:, user:, images:, mode:, note:)
+    def initialize(topic:, user:, images:, mode:, note:, hang: nil, hang_image_upload_id: nil)
       @topic = topic
       @user = user
       @input_images = Array(images)
       @mode = mode.to_sym
       @note = note.to_s.strip.presence
+      @input_hang = hang
+      @input_hang_image_upload_id = hang_image_upload_id.to_i
     end
 
     def call
@@ -50,6 +68,10 @@ module DiscourseRevisedCritiqueImage
 
       built = build_image_records(reader)
       return built if built.is_a?(Result)
+
+      hang = normalized_hang
+      hang_image = hang_image_upload
+      return hang_image if hang_image.is_a?(Result)
 
       history = ProjectRevisionHistory.for(@topic)
       return failure(:max_project_revisions_reached) if @mode == :add && history.at_max?
@@ -80,15 +102,29 @@ module DiscourseRevisedCritiqueImage
         entry =
           case @mode
           when :add
-            history.add!(images: built, user: @user, note: @note)
+            history.add!(
+              images: built,
+              user: @user,
+              note: @note,
+              hang: hang,
+              hang_image_upload_id: hang_image&.id,
+            )
           when :replace_latest
-            history.replace_latest!(images: built, user: @user, note: @note)
+            history.replace_latest!(
+              images: built,
+              user: @user,
+              note: @note,
+              hang: hang,
+              hang_image_upload_id: hang_image&.id,
+            )
           end
 
         rendered =
           ProjectRevisionRenderer.render(
             original_data: reader_payload(reader),
             revisions: history.entries,
+            original_hang_image_upload_id: SubmissionsCompat.original_hang_image_upload_id(@topic),
+            intent: SubmissionsCompat.project_intent(@topic),
           )
 
         new_raw = splice_between_markers(raw, begin_marker, end_marker, rendered)
@@ -165,6 +201,28 @@ module DiscourseRevisedCritiqueImage
         end
 
       records
+    end
+
+    # The hang for this version, normalized by discourse-npn-submissions
+    # (which owns the shape). nil when none was sent or that plugin can't
+    # normalize it.
+    def normalized_hang
+      SubmissionsCompat.normalize_hang(@input_hang)
+    end
+
+    # The wall picture drawn from the hang. Optional; when sent it must be an
+    # image this user can use (same rule as the project images). Returns the
+    # Upload, nil, or a failure Result.
+    def hang_image_upload
+      return nil if @input_hang_image_upload_id <= 0
+
+      upload = Upload.find_by(id: @input_hang_image_upload_id)
+      return failure(:invalid_image_payload) if upload.blank?
+      unless ImageUploadValidation.valid_image_upload?(upload)
+        return failure(:invalid_image_payload)
+      end
+      return failure(:invalid_image_payload) unless UploadOwnership.accessible?(@user, upload)
+      upload
     end
 
     # Index prior version images by stable id so status_for can do

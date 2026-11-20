@@ -89,6 +89,47 @@ describe DiscourseRevisedCritiqueImage::ProjectRevisionsController do
   describe "add first project revision" do
     before { sign_in_owner }
 
+    it "saves the hang and its wall picture with the revision" do
+      skip "needs discourse-npn-submissions" unless defined?(::DiscourseNpnSubmissions::ProjectHang)
+
+      new_a = fab_upload("rev1-a.jpeg")
+      wall = fab_upload("exhibition.jpeg")
+      post endpoint,
+           params: {
+             mode: "add",
+             images: [image_param(id: "slot-a", upload_id: new_a.id)],
+             hang: {
+               layout: "lead",
+               wall: "charcoal",
+               mat: "bogus",
+               sizes: {
+                 new_a.id.to_s => 30,
+               },
+             },
+             hang_image_upload_id: wall.id,
+           }
+      expect(response.status).to eq(200)
+
+      entry = DiscourseRevisedCritiqueImage::ProjectRevisionHistory.for(topic.reload).latest
+      expect(entry["hang"]).to include("layout" => "lead", "wall" => "charcoal")
+      expect(entry["hang"]).not_to have_key("mat")
+      expect(entry["hang"]["sizes"]).to eq(new_a.id.to_s => 30)
+      expect(entry["hang_image_upload_id"]).to eq(wall.id)
+      expect(topic.first_post.reload.raw).to include(wall.short_url)
+    end
+
+    it "rejects a wall picture the user can't use" do
+      other = Fabricate(:upload, user: Fabricate(:user), width: 800, height: 600)
+      new_a = fab_upload("rev1-a.jpeg")
+      post endpoint,
+           params: {
+             mode: "add",
+             images: [image_param(id: "slot-a", upload_id: new_a.id)],
+             hang_image_upload_id: other.id,
+           }
+      expect(response.status).to eq(422)
+    end
+
     it "appends Revision 1 with based_on=0 and 200" do
       new_a = fab_upload("rev1-a.jpeg")
       post_revision(

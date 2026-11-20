@@ -61,6 +61,57 @@ module DiscourseRevisedCritiqueImage
       end
     end
 
+    # ---- The photographer's hang (exhibition wall) ---------------------------
+    # The submissions plugin owns the hang's shape, the wall picture's markup
+    # and the submission record. Each helper degrades to "no hang" when that
+    # plugin (or a new enough version of it) isn't loaded, so a revision still
+    # saves and renders with the plain Project Overview.
+
+    # A hang normalized against the submissions plugin's allowlist, with
+    # string keys for JSON storage; nil when absent or it can't be checked.
+    def normalize_hang(raw)
+      return nil unless raw.is_a?(Hash)
+      return nil unless defined?(::DiscourseNpnSubmissions::ProjectHang)
+      ::DiscourseNpnSubmissions::ProjectHang.normalize(raw).deep_stringify_keys.presence
+    rescue StandardError
+      nil
+    end
+
+    # Markdown for a drawn wall picture (heading + wrapper + image), or nil.
+    def hang_markup(upload:, count:, intent:)
+      return nil if upload.blank?
+      builder =
+        defined?(::DiscourseNpnSubmissions::ProjectPostBuilder) &&
+          ::DiscourseNpnSubmissions::ProjectPostBuilder
+      return nil unless builder && builder.respond_to?(:hang_markup)
+      builder.hang_markup(upload: upload, count: count, intent: intent)
+    rescue StandardError
+      nil
+    end
+
+    def submission_for(topic)
+      return nil unless defined?(::DiscourseNpnSubmissions::Submission)
+      ::DiscourseNpnSubmissions::Submission.find_by(topic_id: topic.id)
+    rescue StandardError
+      nil
+    end
+
+    # The presentation goal chosen in the project form ("gallery", "book", …).
+    def project_intent(topic)
+      submission_for(topic)&.field("project_intent").presence
+    rescue StandardError
+      nil
+    end
+
+    # The upload id of the wall picture drawn for the ORIGINAL submission.
+    def original_hang_image_upload_id(topic)
+      submission = submission_for(topic)
+      return nil unless submission.respond_to?(:hang_image_upload)
+      submission.hang_image_upload&.id
+    rescue StandardError
+      nil
+    end
+
     # True when the sibling plugin's namespace is loaded — useful in tests
     # and in any future log line that wants to record which source was
     # used to resolve the constants.

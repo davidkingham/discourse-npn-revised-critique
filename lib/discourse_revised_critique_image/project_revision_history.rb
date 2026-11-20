@@ -26,6 +26,11 @@ module DiscourseRevisedCritiqueImage
   #       },
   #       ...
   #     ],
+  #     # Optional: the photographer's hang for this version (layout, look,
+  #     # print sizes; shape owned by discourse-npn-submissions' ProjectHang)
+  #     # and the upload of the wall picture drawn from it.
+  #     "hang"                 => { "layout" => "lead", ... },
+  #     "hang_image_upload_id" => 1234,
   #   }
   class ProjectRevisionHistory
     MAX_IMAGES_HARD_LIMIT = 12
@@ -72,7 +77,7 @@ module DiscourseRevisedCritiqueImage
     # original submission if no revisions exist yet). The caller passes a
     # normalized image array and the optional note; based_on is derived
     # from current history state.
-    def add!(images:, user:, note:)
+    def add!(images:, user:, note:, hang: nil, hang_image_upload_id: nil)
       now = Time.zone.now.iso8601
       entry = {
         "revision_number" => next_revision_number,
@@ -82,14 +87,14 @@ module DiscourseRevisedCritiqueImage
         "user_id" => user.id,
         "note" => note.presence,
         "images" => normalize_images(images),
-      }
+      }.merge(hang_fields(hang, hang_image_upload_id))
       persist!(entries + [entry])
       entry
     end
 
     # Mutate the latest entry's images/note/user/updated_at while
     # preserving its revision_number, created_at, and based_on.
-    def replace_latest!(images:, user:, note:)
+    def replace_latest!(images:, user:, note:, hang: nil, hang_image_upload_id: nil)
       raise "no project revision to replace" if empty?
 
       latest_entry = entries.last.dup
@@ -97,6 +102,10 @@ module DiscourseRevisedCritiqueImage
       latest_entry["user_id"] = user.id
       latest_entry["note"] = note.presence
       latest_entry["images"] = normalize_images(images)
+      latest_entry =
+        latest_entry.except("hang", "hang_image_upload_id").merge(
+          hang_fields(hang, hang_image_upload_id),
+        )
 
       persist!(entries[0...-1] + [latest_entry])
       latest_entry
@@ -110,6 +119,13 @@ module DiscourseRevisedCritiqueImage
     end
 
     private
+
+    def hang_fields(hang, hang_image_upload_id)
+      fields = {}
+      fields["hang"] = hang if hang.present?
+      fields["hang_image_upload_id"] = hang_image_upload_id.to_i if hang_image_upload_id.to_i > 0
+      fields
+    end
 
     def next_revision_number
       empty? ? 1 : (entries.last["revision_number"].to_i + 1)

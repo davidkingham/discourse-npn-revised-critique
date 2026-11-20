@@ -168,6 +168,8 @@ module DiscourseRevisedCritiqueImage
               "upload_id" => i["upload_id"],
               "short_url" => i["short_url"],
               "image_url" => upload&.url,
+              "width" => upload&.width,
+              "height" => upload&.height,
               "caption" => i["caption"].to_s,
               "alt" => i["alt"],
             }

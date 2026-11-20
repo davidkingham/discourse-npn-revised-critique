@@ -47,6 +47,13 @@ export default class ProjectRevisionEditor extends Component {
   @tracked submitting = false;
   @tracked errorMessage = null;
 
+  // The photographer's hang for this version (layout, look, print sizes),
+  // edited on the same wall as in the project form. The editor and the
+  // drawing come from discourse-npn-submissions' builder service; without
+  // it (or for a project with no hang support) the section isn't shown and
+  // the revision saves as before.
+  @tracked hang = null;
+
   // Native HTML5 drag-and-drop state. The Move up / Move down buttons
   // are the accessible primary path; drag-and-drop is a pointer
   // convenience layered on top, matching the pattern Discourse uses
@@ -88,6 +95,64 @@ export default class ProjectRevisionEditor extends Component {
 
   get topic() {
     return this.args.model.topic;
+  }
+
+  get hangService() {
+    const builder = getOwner(this).lookup("service:npn-sequence-builder");
+    return builder?.hangEditor && builder?.drawHangImage ? builder : null;
+  }
+
+  get HangEditor() {
+    return this.hangService?.hangEditor ?? null;
+  }
+
+  get projectIntent() {
+    return this.topic?.npn_project_images?.intent ?? null;
+  }
+
+  // The cards as numbered prints for the wall. A print needs its size, so
+  // the hang is offered once every image has one.
+  get hangPrints() {
+    return this.images.map((img, index) => ({
+      number: String(index + 1),
+      upload_id: img.upload_id,
+      url: img.image_url,
+      width: img.width,
+      height: img.height,
+    }));
+  }
+
+  get showHang() {
+    return (
+      !!this.HangEditor &&
+      this.images.length > 0 &&
+      this.hangPrints.every((p) => p.url && p.width > 0 && p.height > 0)
+    );
+  }
+
+  @action
+  setHang(next) {
+    this.hang = next;
+  }
+
+  // The wall picture for the top of the post. A failure doesn't block the
+  // revision: the post shows the plain overview for this version.
+  async drawHangImage() {
+    if (!this.showHang) {
+      return null;
+    }
+    try {
+      const upload = await this.hangService.drawHangImage({
+        prints: this.hangPrints,
+        hang: this.hang,
+        intent: this.projectIntent,
+      });
+      return upload?.id ?? null;
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn("[revised-critique] could not draw the hang image", e);
+      return null;
+    }
   }
 
   get mode() {
@@ -169,6 +234,9 @@ export default class ProjectRevisionEditor extends Component {
     }
 
     this.images = normalizeBaselineImages(baseline.images);
+    // Start from the hang readers see now (the latest revision's, or the
+    // original submission's).
+    this.hang = this.topic?.npn_project_images?.hang ?? null;
     this.note = this.isReplaceMode ? baseline.note || "" : "";
 
     if (this.images.length === 0) {
@@ -376,6 +444,8 @@ export default class ProjectRevisionEditor extends Component {
               upload_id: upload.id,
               short_url: upload.short_url,
               image_url: upload.url,
+              width: upload.width,
+              height: upload.height,
             }
           : img
       );
@@ -390,6 +460,8 @@ export default class ProjectRevisionEditor extends Component {
           upload_id: upload.id,
           short_url: upload.short_url,
           image_url: upload.url,
+          width: upload.width,
+          height: upload.height,
           caption: "",
           alt: `Image ${this.images.length + 1}`,
         },
@@ -411,6 +483,7 @@ export default class ProjectRevisionEditor extends Component {
     this.errorMessage = null;
 
     try {
+      const hangImageUploadId = await this.drawHangImage();
       await ajax(
         `/revised-critique-image/topics/${this.topic.id}/project-revisions`,
         {
@@ -418,6 +491,8 @@ export default class ProjectRevisionEditor extends Component {
           data: {
             mode: this.mode,
             note: this.note.trim(),
+            hang: this.showHang ? this.hang : null,
+            hang_image_upload_id: hangImageUploadId,
             images: this.images.map((img) => ({
               id: img.id,
               upload_id: img.upload_id,
@@ -596,6 +671,27 @@ export default class ProjectRevisionEditor extends Component {
             }}
           </p>
         </div>
+
+        {{#if this.showHang}}
+          <section class="project-revision-editor__hang">
+            <h3 class="project-revision-editor__hang-heading">
+              {{i18n
+                "discourse_revised_critique_image.project_editor.hang_heading"
+              }}
+            </h3>
+            <p class="project-revision-editor__hang-help">
+              {{i18n
+                "discourse_revised_critique_image.project_editor.hang_help"
+              }}
+            </p>
+            <this.HangEditor
+              @prints={{this.hangPrints}}
+              @hang={{this.hang}}
+              @intent={{this.projectIntent}}
+              @onChange={{this.setHang}}
+            />
+          </section>
+        {{/if}}
 
         {{#if this.errorMessage}}
           <p class="project-revision-editor__error" role="alert">
